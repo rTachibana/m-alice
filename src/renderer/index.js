@@ -16,7 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const processBtn = document.getElementById('processBtn');
     const watermarkToggle = document.getElementById('watermarkToggle');
     const watermarkSelect = document.getElementById('watermarkSelect');
+    const invertWatermarkToggle = document.getElementById('invertWatermarkToggle');
     const noiseSlider = document.getElementById('noiseSlider');
+    const watermarkOpacity = document.getElementById('watermarkOpacity');
+    const opacityValue = document.getElementById('opacityValue');
     
     // モーダル関連の要素
     const modalOverlay = document.getElementById('modalOverlay');
@@ -83,6 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Enable/disable watermark selection based on toggle
     watermarkToggle.addEventListener('change', () => {
         watermarkSelect.disabled = !watermarkToggle.checked;
+        invertWatermarkToggle.disabled = !watermarkToggle.checked;
+    });
+
+    // Update opacity value display
+    watermarkOpacity.addEventListener('input', () => {
+        opacityValue.textContent = `${watermarkOpacity.value}%`;
     });
 
     // Process button click handler
@@ -102,7 +111,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 noiseLevel: noiseSlider.value,
                 applyWatermark: watermarkToggle.checked,
                 watermarkType: watermarkToggle.checked ? watermarkSelect.value : null,
-                resize: document.querySelector('input[name="resize"]:checked').value
+                invertWatermark: watermarkToggle.checked && invertWatermarkToggle.checked,
+                resize: document.querySelector('input[name="resize"]:checked').value,
+                watermarkOpacity: Math.max(0.1, watermarkOpacity.value / 100) // 最小値を0.1に制限
             };
             
             // Send to main process for processing
@@ -227,4 +238,16 @@ document.addEventListener('DOMContentLoaded', () => {
             showModal('エラー', '画像の読み込みに失敗しました。別の画像を試してください。');
         }
     }
+
+    // Add event listener to open output folder when output image is clicked
+    afterImage.addEventListener('click', () => {
+        if (selectedImagePath) {
+            const outputFilePath = path.join(
+                path.dirname(selectedImagePath).replace('input', 'output'),
+                `maliced-${path.basename(selectedImagePath)}`
+            );
+            // console.log('Generated output file path:', outputFilePath);
+            ipcRenderer.invoke('show-item-in-folder', outputFilePath);
+        }
+    });
 });

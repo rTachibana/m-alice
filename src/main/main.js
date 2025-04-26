@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
@@ -59,6 +59,9 @@ const getPythonUrl = () => {
 const setupPython = async () => {
     if (fs.existsSync(pythonExePath)) {
         console.log('Python is already set up.');
+        
+        // Python環境はあるが、必要なライブラリが揃っているか確認し、不足していれば追加インストール
+        await setupPythonLibraries();
         return;
     }
 
@@ -88,6 +91,101 @@ const setupPython = async () => {
 
     fs.unlinkSync(zipPath);
     console.log('Python setup complete.');
+
+    // Pythonライブラリをインストール
+    await setupPythonLibraries();
+};
+
+// Pythonの必要なライブラリをインストールする関数
+const setupPythonLibraries = async () => {
+    console.log('Setting up Python libraries...');
+    
+    // Python312._pthファイルを編集して、import siteを有効にする
+    const pythonPthPath = path.join(pythonDir, 'python312._pth');
+    if (fs.existsSync(pythonPthPath)) {
+        let pthContent = fs.readFileSync(pythonPthPath, 'utf8');
+        // #import site の行をimport siteに変更（コメントを解除）
+        if (pthContent.includes('#import site')) {
+            pthContent = pthContent.replace('#import site', 'import site');
+            fs.writeFileSync(pythonPthPath, pthContent);
+            console.log('Enabled import site in python312._pth');
+        }
+    }
+    
+    // get-pipスクリプトをダウンロード
+    const getPipUrl = 'https://bootstrap.pypa.io/get-pip.py';
+    const getPipPath = path.join(pythonDir, 'get-pip.py');
+    
+    console.log('Downloading pip installer...');
+    await new Promise((resolve, reject) => {
+        https.get(getPipUrl, (response) => {
+            const file = fs.createWriteStream(getPipPath);
+            response.pipe(file);
+            file.on('finish', () => {
+                file.close(resolve);
+            });
+        }).on('error', (err) => {
+            fs.unlink(getPipPath, () => reject(err));
+        });
+    });
+    
+    // pipをインストール
+    console.log('Installing pip...');
+    await new Promise((resolve, reject) => {
+        const pipInstall = spawn(pythonExePath, [getPipPath, '--no-warn-script-location']);
+        
+        pipInstall.stdout.on('data', (data) => {
+            console.log(`pip install stdout: ${data}`);
+        });
+        
+        pipInstall.stderr.on('data', (data) => {
+            console.error(`pip install stderr: ${data}`);
+        });
+        
+        pipInstall.on('close', (code) => {
+            if (code === 0) {
+                console.log('pip installed successfully');
+                resolve();
+            } else {
+                console.error(`pip installation failed with code ${code}`);
+                resolve(); // エラーでも続行（以前のインストールが残っている可能性）
+            }
+        });
+    });
+    
+    // 必要なライブラリをインストール
+    const libraries = ['pillow'];
+    const pipPath = path.join(pythonDir, 'Scripts', 'pip.exe');
+    
+    for (const lib of libraries) {
+        console.log(`Installing ${lib}...`);
+        await new Promise((resolve, reject) => {
+            // pipのパスが存在しない場合は、pythonの-mオプションを使用
+            const pipCmd = fs.existsSync(pipPath) ? 
+                spawn(pipPath, ['install', lib, '--no-warn-script-location']) : 
+                spawn(pythonExePath, ['-m', 'pip', 'install', lib, '--no-warn-script-location']);
+            
+            pipCmd.stdout.on('data', (data) => {
+                console.log(`${lib} install stdout: ${data}`);
+            });
+            
+            pipCmd.stderr.on('data', (data) => {
+                console.error(`${lib} install stderr: ${data}`);
+            });
+            
+            pipCmd.on('close', (code) => {
+                if (code === 0) {
+                    console.log(`${lib} installed successfully`);
+                    resolve();
+                } else {
+                    console.error(`${lib} installation failed with code ${code}`);
+                    resolve(); // エラーでも続行
+                }
+            });
+        });
+    }
+    
+    console.log('Python libraries setup complete');
 };
 
 app.on('ready', async () => {
@@ -254,20 +352,32 @@ function setupIPCHandlers() {
             const outputPath = path.join(outputDir, outputFileName);
             console.log('Output path:', outputPath);
 
-            // For demonstration purposes, we're simply copying the file
-            // In the real implementation, this would call the Python script
-            // that processes the image
-            
-            // This is a placeholder for the actual Python script call
-            // Once Python script is ready, uncomment these lines and remove the fs.copyFileSync
-            /*
+            // ウォーターマークパス
+            let watermarkPath = null;
+            if (options.applyWatermark && options.watermarkType) {
+                watermarkPath = path.join(appRoot, 'src', 'watermark', `${options.watermarkType}.png`);
+                console.log('Using watermark:', watermarkPath);
+            }
+
+            // Python処理オプション
+            const processingOptions = {
+                apply_watermark: options.applyWatermark,
+                watermark_path: watermarkPath,
+                opacity: options.watermarkOpacity,
+                invert: options.invertWatermark || false,
+                resize: options.resize,
+                noise_level: parseInt(options.noiseLevel) / 100 // 0~1の範囲に変換
+            };
+
+            // JSONとしてシリアライズ
+            const optionsJson = JSON.stringify(processingOptions);
+
+            // Python スクリプトを実行
             const pythonProcess = spawn(pythonExePath, [
-                path.join(__dirname, '../backend/process.py'),
-                '--input', tempInputPath,
-                '--output', outputPath,
-                '--noise', options.noiseLevel,
-                ...(options.applyWatermark ? ['--watermark', options.watermarkType] : []),
-                '--resize', options.resize
+                path.join(appRoot, 'src', 'backend', 'process.py'),
+                tempInputPath,
+                outputPath,
+                optionsJson
             ]);
 
             const result = await new Promise((resolve, reject) => {
@@ -276,32 +386,43 @@ function setupIPCHandlers() {
 
                 pythonProcess.stdout.on('data', (data) => {
                     stdoutData += data.toString();
+                    console.log(`Python stdout: ${data}`);
                 });
 
                 pythonProcess.stderr.on('data', (data) => {
                     stderrData += data.toString();
+                    console.error(`Python stderr: ${data}`);
                 });
 
                 pythonProcess.on('close', (code) => {
                     if (code === 0) {
-                        resolve({ success: true, outputPath });
+                        resolve({ success: true, outputPath, message: stdoutData });
                     } else {
                         reject(new Error(`Python process exited with code ${code}: ${stderrData}`));
                     }
                 });
             });
 
-            return result;
-            */
-
-            // Temporary implementation - just copy the file for now
-            fs.copyFileSync(tempInputPath, outputPath);
-            console.log('Copied temp file to output path');
-            
             return { success: true, outputPath };
+            
         } catch (error) {
             console.error('Error processing image:', error);
             return { success: false, message: error.message };
         }
+    });
+
+    // Handle opening folder
+    ipcMain.handle('open-folder', async (event, folderPath) => {
+        try {
+            console.log('Opening folder:', folderPath);
+            shell.openPath(folderPath);
+        } catch (error) {
+            console.error('Error opening folder:', error);
+        }
+    });
+
+    ipcMain.handle('show-item-in-folder', (event, filePath) => {
+        console.log('Opening folder for file:', filePath);
+        shell.showItemInFolder(filePath);
     });
 }
