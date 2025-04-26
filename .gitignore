@@ -172,3 +172,17 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Development files
+node_modules/
+package-lock.json
+python/*
+pytest.ini
+tests/
+TailwindCheatSheet.md
+
+# user files
+output/*
+input/*
+
+*.psd

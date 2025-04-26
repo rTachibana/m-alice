@@ -1,0 +1,21 @@
+{
+  "name": "m-alice",
+  "version": "1.0.0",
+  "description": "## 🎯 目的 イラスト画像に対して、AIによる再学習・模倣・トレース（特にi2i / ControlNet）を抑制するための軽量・ローカル完結型の画像防衛ツールを開発する。SNSやポートフォリオ投稿時の画像保護を主眼に置く。",
+  "main": "src/main/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^35.2.1"
+  },
+  "dependencies": {
+    "jest": "^29.7.0",
+    "spectron": "^19.0.0",
+    "unzipper": "^0.12.3"
+  }
+}
