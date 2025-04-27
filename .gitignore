@@ -182,7 +182,7 @@ tests/
 TailwindCheatSheet.md
 
 # user files
-output/*
-input/*
+src/output/*
+src/input/*
 
 *.psd
