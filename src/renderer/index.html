@@ -19,7 +19,7 @@
             <div class="image-container">
                 <div class="image-box">
                     <div id="beforeImage" class="image-display">
-                        <p>Before Image</p>
+                        <p class="text-center">Click<br>or<br>Drop image</p>
                     </div>
                     <div class="file-name">
                         <span id="defaultName">Default Name</span>
@@ -37,6 +37,10 @@
             </div>
             
             <div class="controls-container">
+                <div class="action-buttons">
+                    <button id="processBtn" disabled>Infuse Malice</button>
+                </div>
+                
                 <div class="left-controls">
                     <div class="control-group">
                         <h3>Noise</h3>
@@ -46,7 +50,7 @@
                             <span>+</span>
                         </div>
                     </div>
-                    
+                    <hr>
                     <div class="control-group">
                         <h3>Watermark</h3>
                         <div class="watermark-toggle">
@@ -61,13 +65,13 @@
                                 <option value="all_rights_reserved">All Rights Reserved</option>
                             </select>
                         </div>
-                        <div class="watermark-invert-toggle">
+                        <div class="mt-10 watermark-invert-toggle">
                             <label>
                                 <input type="checkbox" id="invertWatermarkToggle" disabled>
-                                白黒反転
+                                Invert (Black / White)
                             </label>
                         </div>
-                        <label for="watermarkOpacity">ウォーターマークの透明度:</label>
+                        <label for="watermarkOpacity">Watermark Opacity:</label>
                         <input type="range" id="watermarkOpacity" name="watermarkOpacity" min="10" max="100" value="60">
                         <span id="opacityValue">60%</span>
                     </div>
@@ -76,7 +80,6 @@
                 <div class="right-controls">
                     <div class="control-group">
                         <h3>Resize</h3>
-                        <p>(Preserve aspect ratio)</p>
                         <div class="resize-options">
                             <label>
                                 <input type="radio" name="resize" value="default" checked> Default
@@ -90,11 +93,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="action-buttons">
-                <button id="selectImageBtn">画像選択</button>
-                <button id="processBtn" disabled>処理開始</button>
             </div>
         </main>
         
@@ -110,6 +108,47 @@
                 </div>
                 <div class="modal-footer">
                     <button id="modalOkBtn" class="modal-btn modal-ok-btn">OK</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 設定モーダル -->
+        <div id="settingsModalOverlay" class="modal-overlay">
+            <div class="modal-container settings-modal-container">
+                <div class="modal-header">
+                    <h3>Setting</h3>
+                    <button id="settingsModalCloseBtn" class="modal-close-btn">&times;</button>
+                </div>
+                <div class="modal-content">
+                    <div class="settings-section">
+                        <h4>Logo display position</h4>
+                        <div class="logo-position-options">
+                            <label>
+                                <input type="radio" name="logoPosition" value="random" checked> Random (Default)
+                            </label>
+                            <div class="flex">
+                                <label>
+                                    <input type="radio" name="logoPosition" value="top-left"> left/ top
+                                </label>
+                                <label>
+                                    <input type="radio" name="logoPosition" value="top-right"> right / top
+                                </label>
+                            </div>
+                            <div class="flex">
+                                <label>
+                                    <input type="radio" name="logoPosition" value="bottom-left"> left / bottom
+                                </label>
+                                <label>
+                                    <input type="radio" name="logoPosition" value="bottom-right"> right / bottom
+                                </label>
+                            </div>
+                        </div>
+                        <hr>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="settingsSaveBtn" class="modal-btn modal-ok-btn">Save</button>
+                    <button id="settingsCancelBtn" class="modal-btn">Cancel</button>
                 </div>
             </div>
         </div>

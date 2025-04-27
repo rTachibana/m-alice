@@ -218,6 +218,7 @@ app.on('ready', async () => {
         const mainWindow = new BrowserWindow({
             width: 1000,
             height: 800,
+            icon: path.join(appRoot, 'build', 'icons', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
             webPreferences: {
                 contextIsolation: false,
                 nodeIntegration: true,
@@ -369,7 +370,9 @@ function setupIPCHandlers() {
                 opacity: options.watermarkOpacity,
                 invert: options.invertWatermark || false,
                 resize: options.resize,
-                noise_level: parseInt(options.noiseLevel) / 100 // 0~1の範囲に変換
+                noise_level: parseInt(options.noiseLevel) / 100, // 0~1の範囲に変換
+                // ロゴ位置の設定を追加
+                logo_position: options.logoPosition || 'random'
             };
 
             // JSONとしてシリアライズ
@@ -427,5 +430,108 @@ function setupIPCHandlers() {
     ipcMain.handle('show-item-in-folder', (event, filePath) => {
         console.log('Opening folder for file:', filePath);
         shell.showItemInFolder(filePath);
+    });
+    
+    // 設定関連のハンドラー
+    ipcMain.handle('save-settings', async (event, settings) => {
+        try {
+            const settingsPath = path.join(appRoot, 'user-settings.json');
+            fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+            console.log('Settings saved to:', settingsPath);
+            return { success: true };
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            return { success: false, message: error.message };
+        }
+    });
+    
+    ipcMain.handle('load-settings', async () => {
+        try {
+            const settingsPath = path.join(appRoot, 'user-settings.json');
+            
+            if (!fs.existsSync(settingsPath)) {
+                // デフォルト設定を返す
+                const defaultSettings = {
+                    logoPosition: 'random',
+                    noiseLevel: 50,
+                    watermarkEnabled: false,
+                    watermarkType: 'no_ai',
+                    invertWatermark: false,
+                    watermarkOpacity: 60,
+                    resize: 'default'
+                };
+                
+                // デフォルト設定を保存しておく
+                fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings, null, 2), 'utf8');
+                console.log('Created default settings file:', settingsPath);
+                
+                return { success: true, settings: defaultSettings };
+            }
+            
+            const settingsData = fs.readFileSync(settingsPath, 'utf8');
+            const settings = JSON.parse(settingsData);
+            console.log('Settings loaded from:', settingsPath);
+            return { success: true, settings };
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            return { 
+                success: false, 
+                message: error.message,
+                // エラーが発生した場合もデフォルト設定を返す
+                settings: {
+                    logoPosition: 'random',
+                    noiseLevel: 50,
+                    watermarkEnabled: false,
+                    watermarkType: 'no_ai',
+                    invertWatermark: false,
+                    watermarkOpacity: 60,
+                    resize: 'default'
+                }
+            };
+        }
+    });
+
+    // ウォーターマーク画像の一覧を取得するハンドラー
+    ipcMain.handle('get-watermarks', async () => {
+        try {
+            const watermarkDir = path.join(appRoot, 'src', 'watermark');
+            
+            // ディレクトリが存在するか確認
+            if (!fs.existsSync(watermarkDir)) {
+                console.error('Watermark directory does not exist:', watermarkDir);
+                return {
+                  success: false,
+                  message: "watermark クディレクトリが見つかりません",
+                };
+            }
+            
+            // ディレクトリ内のファイル一覧を取得
+            const files = fs.readdirSync(watermarkDir);
+            
+            // PNGとSVGファイルのみをフィルタリング
+            const watermarkFiles = files.filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                return ext === '.png' || ext === '.svg';
+            });
+            
+            // ファイル名（拡張子なし）とパスのマッピングを作成
+            const watermarks = watermarkFiles.map(file => {
+                const fileNameWithoutExt = path.basename(file, path.extname(file));
+                // ファイル名の "_" をスペースに変換（UI表示用）
+                const displayName = fileNameWithoutExt.replace(/_/g, ' ');
+                
+                return {
+                    value: fileNameWithoutExt, // 内部的に使用する値
+                    displayName: displayName,  // UI表示用の名前
+                    path: path.join(watermarkDir, file) // ファイルのフルパス
+                };
+            });
+            
+            console.log('Found watermarks:', watermarks);
+            return { success: true, watermarks };
+        } catch (error) {
+            console.error('Error getting watermarks:', error);
+            return { success: false, message: error.message };
+        }
     });
 }

@@ -6,6 +6,7 @@ const fs = require('fs');
 // Global variables
 let selectedImagePath = null;
 let originalFileName = null; // オリジナルのファイル名を保持する変数を追加
+let userSettings = null; // ユーザー設定を保持する変数
 
 // DOM Elements
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const afterImage = document.getElementById('afterImage');
     const defaultName = document.getElementById('defaultName');
     const outputName = document.getElementById('outputName');
-    const selectImageBtn = document.getElementById('selectImageBtn');
     const processBtn = document.getElementById('processBtn');
     const watermarkToggle = document.getElementById('watermarkToggle');
     const watermarkSelect = document.getElementById('watermarkSelect');
@@ -44,45 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // モーダルのクローズボタンとOKボタンにイベントリスナーを追加
     modalCloseBtn.addEventListener('click', closeModal);
     modalOkBtn.addEventListener('click', closeModal);
-
-    // File selection button click handler - updated to use same buffer method as drag & drop
-    selectImageBtn.addEventListener('click', async () => {
-        try {
-            // Ask main process to open file dialog
-            const result = await ipcRenderer.invoke('select-image');
-            
-            if (result.canceled || !result.filePaths.length) {
-                return;
-            }
-            
-            const filePath = result.filePaths[0];
-            
-            // 選択したファイルをバッファとして読み込み、D&Dと同じ処理を行う
-            try {
-                // ファイルを読み込む
-                const fileData = fs.readFileSync(filePath);
-                const fileName = path.basename(filePath);
-                
-                // ファイルデータをメインプロセスに送信
-                const processResult = await ipcRenderer.invoke('handle-dropped-file-data', {
-                    fileName: fileName,
-                    fileData: Array.from(new Uint8Array(fileData))
-                });
-                
-                if (processResult.success) {
-                    handleSelectedImage(processResult.filePath, fileName); // オリジナルのファイル名を渡す
-                } else {
-                    throw new Error(processResult.message || 'ファイルの処理に失敗しました');
-                }
-            } catch (error) {
-                console.error('Error processing selected file:', error);
-                showModal('エラー', `ファイルの処理に失敗しました: ${error.message}`);
-            }
-        } catch (error) {
-            console.error('Error selecting image:', error);
-            showModal('エラー', '画像の選択に失敗しました。もう一度お試しください。');
-        }
-    });
 
     // Enable/disable watermark selection based on toggle
     watermarkToggle.addEventListener('change', () => {
@@ -115,7 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 watermarkType: watermarkToggle.checked ? watermarkSelect.value : null,
                 invertWatermark: watermarkToggle.checked && invertWatermarkToggle.checked,
                 resize: document.querySelector('input[name="resize"]:checked').value,
-                watermarkOpacity: Math.max(0.1, watermarkOpacity.value / 100) // 最小値を0.1に制限
+                watermarkOpacity: Math.max(0.1, watermarkOpacity.value / 100), // 最小値を0.1に制限
+                logoPosition: userSettings ? userSettings.logoPosition : 'random' // ロゴ位置の設定を追加
             };
             
             // Send to main process for processing
@@ -137,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showModal('エラー', `処理に失敗しました: ${error.message}`);
         } finally {
             processBtn.disabled = false;
-            processBtn.textContent = '処理開始';
+            processBtn.textContent = "Infuse Malice";
         }
     });
 
@@ -212,6 +174,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // beforeImageエリアのクリックで画像選択ダイアログを開く
+    beforeImage.addEventListener('click', async (e) => {
+        // クリック可能範囲を全体に拡大（画像が表示されている場合も含む）
+        
+        // ここから画像選択処理（selectImageBtnのクリックハンドラと同じ処理）
+        try {
+            // Ask main process to open file dialog
+            const result = await ipcRenderer.invoke('select-image');
+            
+            if (result.canceled || !result.filePaths.length) {
+                return;
+            }
+            
+            const filePath = result.filePaths[0];
+            
+            // 選択したファイルをバッファとして読み込み、D&Dと同じ処理を行う
+            try {
+                // ファイルを読み込む
+                const fileData = fs.readFileSync(filePath);
+                const fileName = path.basename(filePath);
+                
+                // ファイルデータをメインプロセスに送信
+                const processResult = await ipcRenderer.invoke('handle-dropped-file-data', {
+                    fileName: fileName,
+                    fileData: Array.from(new Uint8Array(fileData))
+                });
+                
+                if (processResult.success) {
+                    handleSelectedImage(processResult.filePath, fileName); // オリジナルのファイル名を渡す
+                } else {
+                    throw new Error(processResult.message || 'ファイルの処理に失敗しました');
+                }
+            } catch (error) {
+                console.error('Error processing selected file:', error);
+                showModal('エラー', `ファイルの処理に失敗しました: ${error.message}`);
+            }
+        } catch (error) {
+            console.error('Error selecting image:', error);
+            showModal('エラー', '画像の選択に失敗しました。もう一度お試しください。');
+        }
+    });
+    
     // Helper function to handle selected image (used by both drag-drop and button selection)
     function handleSelectedImage(imagePath, origFileName = null) {
         if (!imagePath) return;
@@ -251,5 +255,176 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Opening output folder for file:', outputFilePath);
             ipcRenderer.invoke('show-item-in-folder', outputFilePath);
         }
+    });
+    
+    // 設定モーダル関連の要素
+    const settingsModalOverlay = document.getElementById('settingsModalOverlay');
+    const settingsModalCloseBtn = document.getElementById('settingsModalCloseBtn');
+    const settingsSaveBtn = document.getElementById('settingsSaveBtn');
+    const settingsCancelBtn = document.getElementById('settingsCancelBtn');
+    
+    // 設定ボタンのイベントリスナー（サイドメニューの設定ボタン）
+    const settingsButtons = document.querySelectorAll('.menu-btn');
+    settingsButtons[1].addEventListener('click', () => {
+        openSettingsModal();
+    });
+    
+    // 設定モーダルを開く
+    async function openSettingsModal() {
+        // 現在の設定を読み込む
+        if (!userSettings) {
+            await loadSettings();
+        }
+        
+        // 設定モーダルのフォーム要素に現在の設定値を設定
+        document.querySelector(`input[name="logoPosition"][value="${userSettings.logoPosition}"]`).checked = true;
+        
+        // モーダルを表示
+        settingsModalOverlay.classList.add('show');
+    }
+    
+    // 設定モーダルを閉じる
+    function closeSettingsModal() {
+        settingsModalOverlay.classList.remove('show');
+    }
+    
+    // 設定を保存する
+    async function saveSettings() {
+        try {
+            // フォームから設定値を取得
+            const logoPosition = document.querySelector('input[name="logoPosition"]:checked').value;
+            
+            // 他の設定値も保持（UIの現在の状態から）
+            const settings = {
+                logoPosition,
+                noiseLevel: noiseSlider.value,
+                watermarkEnabled: watermarkToggle.checked,
+                watermarkType: watermarkSelect.value,
+                invertWatermark: invertWatermarkToggle.checked,
+                watermarkOpacity: watermarkOpacity.value,
+                resize: document.querySelector('input[name="resize"]:checked').value
+            };
+            
+            // 設定を保存
+            const result = await ipcRenderer.invoke('save-settings', settings);
+            
+            if (result.success) {
+                userSettings = settings;
+                showModal('設定', '設定を保存しました');
+                closeSettingsModal();
+            } else {
+                throw new Error(result.message || '設定の保存に失敗しました');
+            }
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            showModal('エラー', `設定の保存に失敗しました: ${error.message}`);
+        }
+    }
+    
+    // 設定を読み込む
+    async function loadSettings() {
+        try {
+            const result = await ipcRenderer.invoke('load-settings');
+            
+            if (result.success) {
+                userSettings = result.settings;
+                
+                // UIに設定を反映
+                noiseSlider.value = userSettings.noiseLevel;
+                watermarkToggle.checked = userSettings.watermarkEnabled;
+                watermarkSelect.disabled = !userSettings.watermarkEnabled;
+                invertWatermarkToggle.checked = userSettings.invertWatermark;
+                invertWatermarkToggle.disabled = !userSettings.watermarkEnabled;
+                watermarkOpacity.value = userSettings.watermarkOpacity;
+                opacityValue.textContent = `${userSettings.watermarkOpacity}%`;
+                document.querySelector(`input[name="resize"][value="${userSettings.resize}"]`).checked = true;
+                
+                console.log('Settings loaded:', userSettings);
+            } else {
+                console.warn('Failed to load settings, using defaults');
+                userSettings = result.settings; // エラー時もデフォルト設定は返される
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            // デフォルト設定を使用
+            userSettings = {
+                logoPosition: 'random',
+                noiseLevel: 50,
+                watermarkEnabled: false,
+                watermarkType: 'no_ai',
+                invertWatermark: false,
+                watermarkOpacity: 60,
+                resize: 'default'
+            };
+        }
+    }
+    
+    // ウォーターマークの選択肢を読み込む
+    async function loadWatermarkOptions() {
+        try {
+            // セレクトボックスをクリア
+            watermarkSelect.innerHTML = '';
+            
+            // ウォーターマーク一覧を取得
+            const result = await ipcRenderer.invoke('get-watermarks');
+            
+            if (result.success && result.watermarks && result.watermarks.length > 0) {
+                // 選択肢を追加
+                result.watermarks.forEach(watermark => {
+                    const option = document.createElement('option');
+                    option.value = watermark.value;
+                    option.textContent = watermark.displayName;
+                    watermarkSelect.appendChild(option);
+                });
+                
+                // 設定に保存されていた値があれば選択
+                if (userSettings && userSettings.watermarkType) {
+                    // 値が存在するか確認
+                    const exists = Array.from(watermarkSelect.options).some(opt => opt.value === userSettings.watermarkType);
+                    if (exists) {
+                        watermarkSelect.value = userSettings.watermarkType;
+                    }
+                }
+                
+                console.log('Watermark options loaded');
+            } else {
+                console.warn('No watermarks found or error occurred');
+                // デフォルトの選択肢を追加
+                const defaultOptions = [
+                    { value: 'no_ai', displayName: 'No AI' },
+                    { value: 'all_rights_reserved', displayName: 'All Rights Reserved' }
+                ];
+                
+                defaultOptions.forEach(option => {
+                    const opt = document.createElement('option');
+                    opt.value = option.value;
+                    opt.textContent = option.displayName;
+                    watermarkSelect.appendChild(opt);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading watermark options:', error);
+            // エラー時はデフォルトの選択肢を追加
+            const fallbackOption = document.createElement('option');
+            fallbackOption.value = 'no_ai';
+            fallbackOption.textContent = 'No AI';
+            watermarkSelect.appendChild(fallbackOption);
+        }
+    }
+    
+    // 設定モーダルのボタンにイベントリスナーを追加
+    settingsModalCloseBtn.addEventListener('click', closeSettingsModal);
+    settingsCancelBtn.addEventListener('click', closeSettingsModal);
+    settingsSaveBtn.addEventListener('click', saveSettings);
+    
+    // 起動時に設定とウォーターマークの選択肢を読み込む
+    loadSettings().then(() => {
+        loadWatermarkOptions().then(() => {
+            console.log('Settings and watermark options loaded');
+        }).catch(err => {
+            console.error('Error loading watermark options:', err);
+        });
+    }).catch(err => {
+        console.error('Error loading settings:', err);
     });
 });

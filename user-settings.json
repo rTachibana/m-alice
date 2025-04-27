@@ -1,0 +1,9 @@
+{
+  "logoPosition": "bottom-left",
+  "noiseLevel": "67",
+  "watermarkEnabled": true,
+  "watermarkType": "no_ai_2",
+  "invertWatermark": true,
+  "watermarkOpacity": "100",
+  "resize": "small"
+}
