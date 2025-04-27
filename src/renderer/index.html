@@ -7,106 +7,113 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- <h1>m-Alice</h1> -->
-        <div class="image-container">
-            <div class="image-box">
-                <div id="beforeImage" class="image-display">
-                    <p>Before Image</p>
-                </div>
-                <div class="file-name">
-                    <span id="defaultName">Default Name</span>
-                </div>
+    <!-- <h1>m-Alice</h1> -->
+    <div class="wrapper">
+        <aside class="side-menu">
+            <div class="side-menu-icons">
+                <button class="menu-btn"><img src="img/python.svg" alt="python"></button>
+                <button class="menu-btn"><img src="img/setting.svg" alt="setting"></button>
             </div>
-            
-            <div class="image-box">
-                <div id="afterImage" class="image-display">
-                    <p>After Image</p>
-                </div>
-                <div class="file-name">
-                    <span id="outputName">Output Name</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="controls-container">
-            <div class="left-controls">
-                <div class="control-group">
-                    <h3>Noise</h3>
-                    <div class="slider-container">
-                        <span>-</span>
-                        <input type="range" id="noiseSlider" min="0" max="100" value="50">
-                        <span>+</span>
+        </aside>
+        <main class="container">
+            <div class="image-container">
+                <div class="image-box">
+                    <div id="beforeImage" class="image-display">
+                        <p>Before Image</p>
+                    </div>
+                    <div class="file-name">
+                        <span id="defaultName">Default Name</span>
                     </div>
                 </div>
                 
-                <div class="control-group">
-                    <h3>Watermark</h3>
-                    <div class="watermark-toggle">
-                        <label class="switch">
-                            <input type="checkbox" id="watermarkToggle">
-                            <span class="slider round"></span>
-                        </label>
+                <div class="image-box">
+                    <div id="afterImage" class="image-display">
+                        <p>After Image</p>
                     </div>
-                    <div class="watermark-select">
-                        <select id="watermarkSelect" disabled>
-                            <option value="no_ai">No AI</option>
-                            <option value="all_rights_reserved">All Rights Reserved</option>
-                        </select>
+                    <div class="file-name">
+                        <span id="outputName">Output Name</span>
                     </div>
-                    <div class="watermark-invert-toggle">
-                        <label>
-                            <input type="checkbox" id="invertWatermarkToggle" disabled>
-                            白黒反転
-                        </label>
-                    </div>
-                    <label for="watermarkOpacity">ウォーターマークの透明度:</label>
-                    <input type="range" id="watermarkOpacity" name="watermarkOpacity" min="10" max="100" value="60">
-                    <span id="opacityValue">60%</span>
                 </div>
             </div>
             
-            <div class="right-controls">
-                <div class="control-group">
-                    <h3>Resize</h3>
-                    <p>(Preserve aspect ratio)</p>
-                    <div class="resize-options">
-                        <label>
-                            <input type="radio" name="resize" value="default" checked> Default
-                        </label>
-                        <label>
-                            <input type="radio" name="resize" value="medium"> Medium
-                        </label>
-                        <label>
-                            <input type="radio" name="resize" value="small"> Small
-                        </label>
+            <div class="controls-container">
+                <div class="left-controls">
+                    <div class="control-group">
+                        <h3>Noise</h3>
+                        <div class="slider-container">
+                            <span>-</span>
+                            <input type="range" id="noiseSlider" min="0" max="100" value="50">
+                            <span>+</span>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>Watermark</h3>
+                        <div class="watermark-toggle">
+                            <label class="switch">
+                                <input type="checkbox" id="watermarkToggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="watermark-select">
+                            <select id="watermarkSelect" disabled>
+                                <option value="no_ai">No AI</option>
+                                <option value="all_rights_reserved">All Rights Reserved</option>
+                            </select>
+                        </div>
+                        <div class="watermark-invert-toggle">
+                            <label>
+                                <input type="checkbox" id="invertWatermarkToggle" disabled>
+                                白黒反転
+                            </label>
+                        </div>
+                        <label for="watermarkOpacity">ウォーターマークの透明度:</label>
+                        <input type="range" id="watermarkOpacity" name="watermarkOpacity" min="10" max="100" value="60">
+                        <span id="opacityValue">60%</span>
+                    </div>
+                </div>
+                
+                <div class="right-controls">
+                    <div class="control-group">
+                        <h3>Resize</h3>
+                        <p>(Preserve aspect ratio)</p>
+                        <div class="resize-options">
+                            <label>
+                                <input type="radio" name="resize" value="default" checked> Default
+                            </label>
+                            <label>
+                                <input type="radio" name="resize" value="medium"> Medium
+                            </label>
+                            <label>
+                                <input type="radio" name="resize" value="small"> Small
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+            
+            <div class="action-buttons">
+                <button id="selectImageBtn">画像選択</button>
+                <button id="processBtn" disabled>処理開始</button>
+            </div>
+        </main>
         
-        <div class="action-buttons">
-            <button id="selectImageBtn">画像選択</button>
-            <button id="processBtn" disabled>処理開始</button>
-        </div>
-    </div>
-    
-    <!-- モーダル表示のためのコンポーネント -->
-    <div id="modalOverlay" class="modal-overlay">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h3 id="modalTitle">m-alice</h3>
-                <button id="modalCloseBtn" class="modal-close-btn">&times;</button>
-            </div>
-            <div class="modal-content">
-                <p id="modalMessage"></p>
-            </div>
-            <div class="modal-footer">
-                <button id="modalOkBtn" class="modal-btn modal-ok-btn">OK</button>
+        <!-- モーダル表示のためのコンポーネント -->
+        <div id="modalOverlay" class="modal-overlay">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3 id="modalTitle">m-alice</h3>
+                    <button id="modalCloseBtn" class="modal-close-btn">&times;</button>
+                </div>
+                <div class="modal-content">
+                    <p id="modalMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button id="modalOkBtn" class="modal-btn modal-ok-btn">OK</button>
+                </div>
             </div>
         </div>
     </div>
-    
     <script src="index.js"></script>
 </body>
 </html>

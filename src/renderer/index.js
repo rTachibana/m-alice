@@ -5,6 +5,7 @@ const fs = require('fs');
 
 // Global variables
 let selectedImagePath = null;
+let originalFileName = null; // オリジナルのファイル名を保持する変数を追加
 
 // DOM Elements
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 
                 if (processResult.success) {
-                    handleSelectedImage(processResult.filePath);
+                    handleSelectedImage(processResult.filePath, fileName); // オリジナルのファイル名を渡す
                 } else {
                     throw new Error(processResult.message || 'ファイルの処理に失敗しました');
                 }
@@ -108,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Collect processing options
             const options = {
                 imagePath: selectedImagePath,
+                originalFileName: originalFileName, // オリジナルのファイル名を追加
                 noiseLevel: noiseSlider.value,
                 applyWatermark: watermarkToggle.checked,
                 watermarkType: watermarkToggle.checked ? watermarkSelect.value : null,
@@ -186,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                         
                         if (result.success) {
-                            handleSelectedImage(result.filePath);
+                            handleSelectedImage(result.filePath, fileName); // オリジナルのファイル名を渡す
                         } else {
                             throw new Error(result.message || 'ファイルの処理に失敗しました');
                         }
@@ -211,13 +213,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Helper function to handle selected image (used by both drag-drop and button selection)
-    function handleSelectedImage(imagePath, originalFileName = null) {
+    function handleSelectedImage(imagePath, origFileName = null) {
         if (!imagePath) return;
         
         try {
             selectedImagePath = imagePath;
-            // オリジナルのファイル名を優先して使用する
-            const fileName = originalFileName || path.basename(selectedImagePath);
+            // オリジナルのファイル名を保存（グローバル変数に格納）
+            originalFileName = origFileName || path.basename(imagePath);
             
             // Display selected image (キャッシュ回避のためのタイムスタンプを追加)
             beforeImage.innerHTML = '';
@@ -226,13 +228,13 @@ document.addEventListener('DOMContentLoaded', () => {
             beforeImage.appendChild(img);
             
             // Update file name display with original file name
-            defaultName.textContent = fileName;
-            outputName.textContent = `maliced-${fileName}`;
+            defaultName.textContent = originalFileName;
+            outputName.textContent = `maliced-${originalFileName}`;
             
             // Enable process button
             processBtn.disabled = false;
             
-            console.log('Image selected:', selectedImagePath, 'Original file name:', fileName);
+            console.log('Image selected:', selectedImagePath, 'Original file name:', originalFileName);
         } catch (error) {
             console.error('Error handling selected image:', error);
             showModal('エラー', '画像の読み込みに失敗しました。別の画像を試してください。');
@@ -241,12 +243,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add event listener to open output folder when output image is clicked
     afterImage.addEventListener('click', () => {
-        if (selectedImagePath) {
+        if (selectedImagePath && originalFileName) {
             const outputFilePath = path.join(
                 path.dirname(selectedImagePath).replace('input', 'output'),
-                `maliced-${path.basename(selectedImagePath)}`
+                `maliced-${originalFileName}`
             );
-            // console.log('Generated output file path:', outputFilePath);
+            console.log('Opening output folder for file:', outputFilePath);
             ipcRenderer.invoke('show-item-in-folder', outputFilePath);
         }
     });

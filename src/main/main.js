@@ -337,18 +337,21 @@ function setupIPCHandlers() {
             
             // Copy the input file to input directory
             const inputFilePath = options.imagePath;
-            const fileName = path.basename(inputFilePath);
+            
+            // オリジナルのファイル名を使用（指定がない場合はパスからファイル名を取得）
+            const originalFileName = options.originalFileName || path.basename(inputFilePath);
             const tempInputPath = path.join(inputDir, 'temp_input' + path.extname(inputFilePath));
             
             console.log('Input file path:', inputFilePath);
+            console.log('Original file name:', originalFileName);
             console.log('Temp input path:', tempInputPath);
             
             // Copy input file to temp location
             fs.copyFileSync(inputFilePath, tempInputPath);
             console.log('Copied input file to temp location');
 
-            // Prepare output path
-            const outputFileName = `maliced-${fileName}`;
+            // Prepare output path with original file name
+            const outputFileName = `maliced-${originalFileName}`;
             const outputPath = path.join(outputDir, outputFileName);
             console.log('Output path:', outputPath);
 
