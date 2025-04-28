@@ -1,9 +1,19 @@
 {
   "logoPosition": "bottom-left",
-  "noiseLevel": "67",
+  "noiseLevel": "3",
   "watermarkEnabled": true,
   "watermarkType": "no_ai_2",
   "invertWatermark": true,
-  "watermarkOpacity": "100",
-  "resize": "small"
+  "watermarkOpacity": "75",
+  "resize": "medium",
+  "noiseTypes": [
+    "gaussian",
+    "dct",
+    "speckle",
+    "shot"
+  ],
+  "removeMetadata": true,
+  "addFakeMetadata": true,
+  "fakeMetadataType": "paint",
+  "addNoAIFlag": true
 }

@@ -24,6 +24,9 @@
                     <div class="file-name">
                         <span id="defaultName">Default Name</span>
                     </div>
+                    <div class="action-buttons">
+                        <button id="processBtn" disabled>Infuse Malice</button>
+                    </div>
                 </div>
                 
                 <div class="image-box">
@@ -33,21 +36,23 @@
                     <div class="file-name">
                         <span id="outputName">Output Name</span>
                     </div>
+                    <div class="metadata-button-container">
+                        <button id="viewMetadataBtn" disabled>Display Metadata</button>
+                    </div>
                 </div>
             </div>
             
             <div class="controls-container">
-                <div class="action-buttons">
-                    <button id="processBtn" disabled>Infuse Malice</button>
-                </div>
-                
                 <div class="left-controls">
                     <div class="control-group">
                         <h3>Noise</h3>
                         <div class="slider-container">
                             <span>-</span>
-                            <input type="range" id="noiseSlider" min="0" max="100" value="50">
+                            <input type="range" id="noiseSlider" min="0" max="7" value="3" step="1">
                             <span>+</span>
+                        </div>
+                        <div class="noise-level-display">
+                            <span id="noiseLevelText">Moderate (Lv.4)</span>
                         </div>
                     </div>
                     <hr>
@@ -105,6 +110,10 @@
                 </div>
                 <div class="modal-content">
                     <p id="modalMessage"></p>
+                    <div id="modalDetailsContainer" class="details-container">
+                        <button id="showDetailsBtn" class="details-toggle-btn">詳細情報を表示</button>
+                        <div id="modalDetails" class="details-content"></div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button id="modalOkBtn" class="modal-btn modal-ok-btn">OK</button>
@@ -140,6 +149,59 @@
                                 </label>
                                 <label>
                                     <input type="radio" name="logoPosition" value="bottom-right"> right / bottom
+                                </label>
+                            </div>
+                        </div>
+                        <hr>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Noise types</h4>
+                        <div class="noise-types-options">
+                            <p>Choose which noise types to apply:</p>
+                            <div class="checkbox-list">
+                                <label>
+                                    <input type="checkbox" name="noiseTypes" value="gaussian" checked> Gaussian noise (Default)
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="noiseTypes" value="dct" checked> DCT noise (Default)
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="noiseTypes" value="speckle"> Speckle noise
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="noiseTypes" value="shot"> Shot noise (Salt & Pepper)
+                                </label>
+                                <p>* Shot noise は非常に強い影響がでます</p>
+                            </div>
+                        </div>
+                        <hr>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Metadata</h4>
+                        <div class="metadata-options">
+                            <p>Manage image metadata settings:</p>
+                            <div class="checkbox-list">
+                                <label>
+                                    <input type="checkbox" id="removeMetadata" name="removeMetadata" checked>
+                                    Remove all metadata
+                                    <small>Removes all private information like camera details, location, etc.</small>
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="addFakeMetadata" name="addFakeMetadata" checked>
+                                    Add fake metadata
+                                </label>
+                                <div class="sub-option">
+                                    <select id="fakeMetadataType" name="fakeMetadataType">
+                                        <option value="random">Random (Recommended)</option>
+                                        <option value="paint">Paint software</option>
+                                        <option value="old_camera">Old camera</option>
+                                        <option value="screenshot">Screenshot</option>
+                                    </select>
+                                </div>
+                                <label>
+                                    <input type="checkbox" id="addNoAIFlag" name="addNoAIFlag" checked>
+                                    Add AI training prohibition flag
+                                    <small>Embeds flags that may be recognized by AI models</small>
                                 </label>
                             </div>
                         </div>

@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const noiseSlider = document.getElementById('noiseSlider');
     const watermarkOpacity = document.getElementById('watermarkOpacity');
     const opacityValue = document.getElementById('opacityValue');
+    const noiseLevelText = document.getElementById('noiseLevelText');
     
     // モーダル関連の要素
     const modalOverlay = document.getElementById('modalOverlay');
@@ -28,11 +29,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalMessage = document.getElementById('modalMessage');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalOkBtn = document.getElementById('modalOkBtn');
+    const modalDetailsContainer = document.getElementById('modalDetailsContainer');
+    const showDetailsBtn = document.getElementById('showDetailsBtn');
+    const modalDetails = document.getElementById('modalDetails');
+    
+    // 直近の処理済み画像のパスを保持する変数
+    let lastProcessedImagePath = null;
 
     // モーダル表示関数
-    function showModal(title, message) {
+    function showModal(title, message, isProcessingComplete = false) {
         modalTitle.textContent = title;
         modalMessage.textContent = message;
+        
+        // 処理完了モーダルの場合は詳細表示ボタンを表示
+        if (isProcessingComplete && lastProcessedImagePath) {
+            modalDetailsContainer.style.display = 'block';
+            // 詳細ボタンの状態をリセット
+            showDetailsBtn.classList.remove('active');
+            modalDetails.style.display = 'none';
+        } else {
+            modalDetailsContainer.style.display = 'none';
+        }
+        
         modalOverlay.classList.add('show');
     }
     
@@ -40,6 +58,73 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeModal() {
         modalOverlay.classList.remove('show');
     }
+    
+    // 詳細表示ボタンのイベントリスナー
+    showDetailsBtn.addEventListener('click', async () => {
+        // ボタンの状態を切り替え
+        showDetailsBtn.classList.toggle('active');
+        
+        // 詳細エリアが表示されていない場合はメタデータを読み込んで表示
+        if (modalDetails.style.display !== 'block') {
+            modalDetails.style.display = 'block';
+            modalDetails.innerHTML = '<p>メタデータを読み込み中...</p>';
+            
+            try {
+                // メタデータを取得
+                if (lastProcessedImagePath) {
+                    const result = await ipcRenderer.invoke('get-image-metadata', lastProcessedImagePath);
+                    
+                    if (result.success) {
+                        // メタデータ表示用のHTMLを生成
+                        let metadataContent = '<div class="metadata-display">';
+                        
+                        if (!result.metadata || Object.keys(result.metadata).length === 0) {
+                            metadataContent += '<p>画像にメタデータが含まれていません</p>';
+                        } else {
+                            metadataContent += '<h4>画像メタデータ</h4>';
+                            metadataContent += '<table class="metadata-table">';
+                            
+                            // メタデータのカテゴリごとに表示
+                            for (const [category, items] of Object.entries(result.metadata)) {
+                                metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
+                                
+                                // エラーの場合は特別処理
+                                if (category === 'エラー') {
+                                    metadataContent += `<tr><td>メッセージ</td><td>${items}</td></tr>`;
+                                    continue;
+                                }
+                                
+                                // カテゴリ内の項目を表示（オブジェクトであることを確認）
+                                if (typeof items === 'object' && items !== null) {
+                                    for (const [key, value] of Object.entries(items)) {
+                                        metadataContent += `<tr><td>${key}</td><td>${value}</td></tr>`;
+                                    }
+                                } else {
+                                    // オブジェクトでない場合は単純な値として表示
+                                    metadataContent += `<tr><td>${category}</td><td>${items}</td></tr>`;
+                                }
+                            }
+                            
+                            metadataContent += '</table>';
+                        }
+                        
+                        metadataContent += '</div>';
+                        modalDetails.innerHTML = metadataContent;
+                    } else {
+                        throw new Error(result.message || 'メタデータの取得に失敗しました');
+                    }
+                } else {
+                    throw new Error('処理済み画像が見つかりません');
+                }
+            } catch (error) {
+                console.error('Error loading metadata:', error);
+                modalDetails.innerHTML = `<p class="error">メタデータの読み込みに失敗しました: ${error.message}</p>`;
+            }
+        } else {
+            // 既に表示されている場合は非表示にする
+            modalDetails.style.display = 'none';
+        }
+    });
     
     // モーダルのクローズボタンとOKボタンにイベントリスナーを追加
     modalCloseBtn.addEventListener('click', closeModal);
@@ -54,6 +139,51 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update opacity value display
     watermarkOpacity.addEventListener('input', () => {
         opacityValue.textContent = `${watermarkOpacity.value}%`;
+    });
+
+    // ノイズレベルの表示を更新する関数
+    function updateNoiseLevelText(value) {
+        const level = parseInt(value);
+        let levelText = '';
+        
+        switch (level) {
+            case 0:
+                levelText = "Lower (Lv.1)";
+                break;
+            case 1:
+                levelText = 'Low (Lv.2)';
+                break;
+            case 2:
+                levelText = 'Mild (Lv.3)';
+                break;
+            case 3:
+                levelText = 'Moderate (Lv.4)';
+                break;
+            case 4:
+                levelText = 'Strong (Lv.5)';
+                break;
+            case 5:
+                levelText = "Very Strong (Lv.6)";
+                break;
+            case 6:
+                levelText = 'Maximum (Lv.7)';
+                break;
+            case 7:
+                levelText = "Chaos (Lv.8)";
+                break;
+            default:
+                levelText = "Moderate (Lv.4)";
+        }
+        
+        noiseLevelText.textContent = levelText;
+    }
+    
+    // 初期表示を設定
+    updateNoiseLevelText(noiseSlider.value);
+    
+    // スライダー値変更時の処理
+    noiseSlider.addEventListener('input', () => {
+        updateNoiseLevelText(noiseSlider.value);
     });
 
     // Process button click handler
@@ -72,12 +202,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 imagePath: selectedImagePath,
                 originalFileName: originalFileName, // オリジナルのファイル名を追加
                 noiseLevel: noiseSlider.value,
+                noiseTypes: userSettings ? userSettings.noiseTypes : ['gaussian', 'dct'], // ノイズタイプを追加
                 applyWatermark: watermarkToggle.checked,
                 watermarkType: watermarkToggle.checked ? watermarkSelect.value : null,
                 invertWatermark: watermarkToggle.checked && invertWatermarkToggle.checked,
                 resize: document.querySelector('input[name="resize"]:checked').value,
                 watermarkOpacity: Math.max(0.1, watermarkOpacity.value / 100), // 最小値を0.1に制限
-                logoPosition: userSettings ? userSettings.logoPosition : 'random' // ロゴ位置の設定を追加
+                logoPosition: userSettings ? userSettings.logoPosition : 'random', // ロゴ位置の設定を追加
+                // メタデータオプションを追加
+                removeMetadata: userSettings ? userSettings.removeMetadata : true,
+                addFakeMetadata: userSettings ? userSettings.addFakeMetadata : true,
+                fakeMetadataType: userSettings ? userSettings.fakeMetadataType : 'random',
+                addNoAIFlag: userSettings ? userSettings.addNoAIFlag : true
             };
             
             // Send to main process for processing
@@ -90,7 +226,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 img.src = result.outputPath + '?t=' + new Date().getTime(); // Cache-busting
                 afterImage.appendChild(img);
                 
-                showModal('処理完了', '画像処理が完了しました');
+                // 処理済み画像のパスを保存
+                lastProcessedImagePath = result.outputPath;
+                
+                // メタデータ表示ボタンを有効化
+                document.getElementById('viewMetadataBtn').disabled = false;
+                
+                showModal('処理完了', '画像処理が完了しました', true);
             } else {
                 throw new Error(result.message || '処理に失敗しました');
             }
@@ -246,13 +388,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Add event listener to open output folder when output image is clicked
-    afterImage.addEventListener('click', () => {
+    afterImage.addEventListener('click', (e) => {
         if (selectedImagePath && originalFileName) {
             const outputFilePath = path.join(
                 path.dirname(selectedImagePath).replace('input', 'output'),
                 `maliced-${originalFileName}`
             );
-            console.log('Opening output folder for file:', outputFilePath);
+            console.log('Clicking output image for file:', outputFilePath);
+            
+            // 画像をクリックしたらフォルダを開く（元の挙動に戻す）
             ipcRenderer.invoke('show-item-in-folder', outputFilePath);
         }
     });
@@ -294,6 +438,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // フォームから設定値を取得
             const logoPosition = document.querySelector('input[name="logoPosition"]:checked').value;
             
+            // ノイズタイプの選択肢を取得（複数選択可能）
+            const noiseTypesElements = document.querySelectorAll('input[name="noiseTypes"]:checked');
+            const noiseTypes = Array.from(noiseTypesElements).map(el => el.value);
+            
+            // メタデータ設定を取得
+            const removeMetadata = document.getElementById('removeMetadata').checked;
+            const addFakeMetadata = document.getElementById('addFakeMetadata').checked;
+            const fakeMetadataType = document.getElementById('fakeMetadataType').value;
+            const addNoAIFlag = document.getElementById('addNoAIFlag').checked;
+            
             // 他の設定値も保持（UIの現在の状態から）
             const settings = {
                 logoPosition,
@@ -302,7 +456,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 watermarkType: watermarkSelect.value,
                 invertWatermark: invertWatermarkToggle.checked,
                 watermarkOpacity: watermarkOpacity.value,
-                resize: document.querySelector('input[name="resize"]:checked').value
+                resize: document.querySelector('input[name="resize"]:checked').value,
+                noiseTypes: noiseTypes,
+                // メタデータ設定を追加
+                removeMetadata: removeMetadata,
+                addFakeMetadata: addFakeMetadata,
+                fakeMetadataType: fakeMetadataType,
+                addNoAIFlag: addNoAIFlag
             };
             
             // 設定を保存
@@ -331,6 +491,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // UIに設定を反映
                 noiseSlider.value = userSettings.noiseLevel;
+                // ノイズレベルのテキスト表示を更新
+                updateNoiseLevelText(noiseSlider.value);
+                
                 watermarkToggle.checked = userSettings.watermarkEnabled;
                 watermarkSelect.disabled = !userSettings.watermarkEnabled;
                 invertWatermarkToggle.checked = userSettings.invertWatermark;
@@ -339,23 +502,101 @@ document.addEventListener('DOMContentLoaded', () => {
                 opacityValue.textContent = `${userSettings.watermarkOpacity}%`;
                 document.querySelector(`input[name="resize"][value="${userSettings.resize}"]`).checked = true;
                 
+                // メタデータ設定の反映
+                if ('removeMetadata' in userSettings) {
+                    document.getElementById('removeMetadata').checked = userSettings.removeMetadata;
+                }
+                if ('addFakeMetadata' in userSettings) {
+                    document.getElementById('addFakeMetadata').checked = userSettings.addFakeMetadata;
+                }
+                if ('fakeMetadataType' in userSettings) {
+                    document.getElementById('fakeMetadataType').value = userSettings.fakeMetadataType;
+                }
+                if ('addNoAIFlag' in userSettings) {
+                    document.getElementById('addNoAIFlag').checked = userSettings.addNoAIFlag;
+                }
+                
+                // ノイズタイプの設定を反映
+                if (userSettings.noiseTypes && userSettings.noiseTypes.length > 0) {
+                    // すべてのチェックボックスをいったん解除
+                    document.querySelectorAll('input[name="noiseTypes"]').forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                    
+                    // 設定に保存されているノイズタイプをチェック
+                    userSettings.noiseTypes.forEach(type => {
+                        const checkbox = document.querySelector(`input[name="noiseTypes"][value="${type}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
+                } else {
+                    // デフォルト値（ガウシアンノイズとDCTノイズ）をチェック
+                    const defaultNoiseTypes = ['gaussian', 'dct'];
+                    defaultNoiseTypes.forEach(type => {
+                        const checkbox = document.querySelector(`input[name="noiseTypes"][value="${type}"]`);
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                    });
+                    
+                    // デフォルト値を設定オブジェクトに追加
+                    userSettings.noiseTypes = defaultNoiseTypes;
+                }
+                
                 console.log('Settings loaded:', userSettings);
             } else {
                 console.warn('Failed to load settings, using defaults');
                 userSettings = result.settings; // エラー時もデフォルト設定は返される
+                
+                // ノイズレベルのテキスト表示を更新
+                updateNoiseLevelText(noiseSlider.value);
+                
+                // デフォルトのノイズタイプを設定
+                if (!userSettings.noiseTypes) {
+                    userSettings.noiseTypes = ['gaussian', 'dct'];
+                }
+                
+                // ノイズタイプのデフォルト値をUI要素に反映
+                const defaultNoiseTypes = ['gaussian', 'dct'];
+                defaultNoiseTypes.forEach(type => {
+                    const checkbox = document.querySelector(`input[name="noiseTypes"][value="${type}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
             }
         } catch (error) {
             console.error('Error loading settings:', error);
             // デフォルト設定を使用
             userSettings = {
                 logoPosition: 'random',
-                noiseLevel: 50,
+                noiseLevel: 3, // 8段階スライダーに合わせて初期値を修正
                 watermarkEnabled: false,
                 watermarkType: 'no_ai',
                 invertWatermark: false,
                 watermarkOpacity: 60,
-                resize: 'default'
+                resize: 'default',
+                noiseTypes: ['gaussian', 'dct'],
+                // メタデータのデフォルト設定
+                removeMetadata: true,
+                addFakeMetadata: true,
+                fakeMetadataType: 'random',
+                addNoAIFlag: true
             };
+            
+            // スライダー値とテキスト表示を更新
+            noiseSlider.value = userSettings.noiseLevel;
+            updateNoiseLevelText(userSettings.noiseLevel);
+            
+            // ノイズタイプのデフォルト値をUI要素に反映
+            const defaultNoiseTypes = ['gaussian', 'dct'];
+            defaultNoiseTypes.forEach(type => {
+                const checkbox = document.querySelector(`input[name="noiseTypes"][value="${type}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
         }
     }
     
@@ -427,4 +668,122 @@ document.addEventListener('DOMContentLoaded', () => {
     }).catch(err => {
         console.error('Error loading settings:', err);
     });
+
+    // メタデータ表示ボタンの要素を取得
+    const viewMetadataBtn = document.getElementById('viewMetadataBtn');
+    
+    // メタデータ表示ボタンのクリックイベント
+    viewMetadataBtn.addEventListener('click', async () => {
+        if (lastProcessedImagePath) {
+            try {
+                // メタデータを取得して表示
+                await displayMetadata(lastProcessedImagePath);
+            } catch (error) {
+                console.error('Error displaying metadata:', error);
+                showModal('エラー', `メタデータの表示に失敗しました: ${error.message}`);
+            }
+        }
+    });
+    
+    // メタデータを表示する関数
+    async function displayMetadata(imagePath) {
+        try {
+            // メタデータを読み込み中であることを表示
+            showModal('メタデータを読み込み中...', 'しばらくお待ちください...');
+            
+            // メタデータを取得
+            const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
+            
+            if (result.success) {
+                // メタデータ表示用のHTMLを生成
+                let metadataContent = '<div class="metadata-display">';
+                
+                if (!result.metadata || Object.keys(result.metadata).length === 0) {
+                    metadataContent += '<p>画像にメタデータが含まれていません</p>';
+                } else {
+                    metadataContent += '<h4>画像メタデータ</h4>';
+                    metadataContent += '<table class="metadata-table">';
+                    
+                    // メタデータのカテゴリごとに表示
+                    for (const [category, items] of Object.entries(result.metadata)) {
+                        metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
+                        
+                        // エラーの場合は特別処理
+                        if (category === 'エラー') {
+                            metadataContent += `<tr><td>メッセージ</td><td>${items}</td></tr>`;
+                            continue;
+                        }
+                        
+                        // カテゴリ内の項目を表示（オブジェクトであることを確認）
+                        if (typeof items === 'object' && items !== null) {
+                            for (const [key, value] of Object.entries(items)) {
+                                metadataContent += `<tr><td>${key}</td><td>${value}</td></tr>`;
+                            }
+                        } else {
+                            // オブジェクトでない場合は単純な値として表示
+                            metadataContent += `<tr><td>${category}</td><td>${items}</td></tr>`;
+                        }
+                    }
+                    
+                    metadataContent += '</table>';
+                }
+                
+                metadataContent += '</div>';
+                
+                // モーダルを更新して表示
+                modalTitle.textContent = 'メタデータ情報';
+                modalMessage.innerHTML = metadataContent;
+                modalOverlay.classList.add('show');
+            } else {
+                throw new Error(result.message || 'メタデータの取得に失敗しました');
+            }
+        } catch (error) {
+            console.error('Error displaying metadata:', error);
+            showModal('エラー', `メタデータの表示に失敗しました: ${error.message}`);
+        }
+    }
 });
+
+// Add metadata display functionality
+async function displayImageMetadata(imagePath) {
+    try {
+        // Call main process to extract metadata
+        const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
+        
+        if (result.success) {
+            // Prepare metadata display content
+            let metadataContent = '<div class="metadata-display">';
+            
+            if (Object.keys(result.metadata).length === 0) {
+                metadataContent += '<p>画像にメタデータが含まれていません</p>';
+            } else {
+                metadataContent += '<h4>画像メタデータ</h4>';
+                metadataContent += '<table class="metadata-table">';
+                
+                // Display each metadata category
+                for (const [category, items] of Object.entries(result.metadata)) {
+                    metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
+                    
+                    // Display items in this category
+                    for (const [key, value] of Object.entries(items)) {
+                        metadataContent += `<tr><td>${key}</td><td>${value}</td></tr>`;
+                    }
+                }
+                
+                metadataContent += '</table>';
+            }
+            
+            metadataContent += '</div>';
+            
+            // Show metadata in modal
+            modalTitle.textContent = 'メタデータ情報';
+            modalMessage.innerHTML = metadataContent;
+            modalOverlay.classList.add('show');
+        } else {
+            throw new Error(result.message || 'メタデータの取得に失敗しました');
+        }
+    } catch (error) {
+        console.error('Error displaying metadata:', error);
+        showModal('エラー', `メタデータの表示に失敗しました: ${error.message}`);
+    }
+}

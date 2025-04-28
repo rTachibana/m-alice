@@ -2,6 +2,11 @@ import sys
 import os
 import random
 from PIL import Image, ImageDraw, ImageOps, ImageEnhance
+import numpy as np
+from scipy.fft import dct, idct
+import piexif
+import json
+import datetime
 
 def process_image(input_path, output_path, options=None):
     """
@@ -13,7 +18,30 @@ def process_image(input_path, output_path, options=None):
         with Image.open(input_path) as img:
             processed_img = img.copy()
             
-            # ウォーターマーク処理（有効な場合）
+            # 1. リサイズ処理（オプションがある場合）を最初に適用
+            if options and options.get('resize'):
+                resize_option = options.get('resize')
+                processed_img = resize_image(processed_img, resize_option)
+            
+            # 2. DCTノイズを適用
+            if options and 'noise_level' in options and 'dct' in options.get('noise_types', []):
+                noise_level = options.get('noise_level', 0.5)
+                processed_img = apply_single_noise(
+                    processed_img,
+                    noise_type='dct',
+                    noise_level=noise_level
+                )
+            
+            # 3. スペックルノイズを適用
+            if options and 'noise_level' in options and 'speckle' in options.get('noise_types', []):
+                noise_level = options.get('noise_level', 0.5)
+                processed_img = apply_single_noise(
+                    processed_img,
+                    noise_type='speckle',
+                    noise_level=noise_level
+                )
+            
+            # 4. ウォーターマーク処理（有効な場合）
             if options and options.get('apply_watermark'):
                 watermark_path = options.get('watermark_path')
                 opacity = options.get('opacity', 0.6)  # デフォルト透過率60%
@@ -26,12 +54,7 @@ def process_image(input_path, output_path, options=None):
                     invert=invert
                 )
             
-            # リサイズ処理（オプションがある場合）
-            if options and options.get('resize'):
-                resize_option = options.get('resize')
-                processed_img = resize_image(processed_img, resize_option)
-            
-            # マリス・ロゴを指定された位置またはランダムに配置（常に実行）
+            # マリス・ロゴを指定された位置またはランダムに配置
             app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
             logo_path = os.path.join(app_root, 'src', 'logo', 'logo.png')
             
@@ -47,14 +70,222 @@ def process_image(input_path, output_path, options=None):
                     position=logo_position
                 )
             
+            # 5. ガウシアンノイズを適用
+            if options and 'noise_level' in options and 'gaussian' in options.get('noise_types', []):
+                noise_level = options.get('noise_level', 0.5)
+                processed_img = apply_single_noise(
+                    processed_img,
+                    noise_type='gaussian',
+                    noise_level=noise_level
+                )
+            
+            # 6. ショットノイズを最後に適用
+            if options and 'noise_level' in options and 'shot' in options.get('noise_types', []):
+                noise_level = options.get('noise_level', 0.5)
+                processed_img = apply_single_noise(
+                    processed_img,
+                    noise_type='shot',
+                    noise_level=noise_level
+                )
+            
             # 保存
             processed_img.save(output_path)
+            
+            # 7. メタデータ処理を実行
+            if options and (options.get('remove_metadata', True) or 
+                        options.get('add_fake_metadata', True) or 
+                        options.get('add_no_ai_flag', True)):
+                
+                metadata_options = {
+                    'remove_metadata': options.get('remove_metadata', True),
+                    'add_fake_metadata': options.get('add_fake_metadata', True),
+                    'fake_metadata_type': options.get('fake_metadata_type', 'random'),
+                    'add_no_ai_flag': options.get('add_no_ai_flag', True),
+                }
+                
+                process_metadata(output_path, output_path, metadata_options)
             
         print("SUCCESS")
         return True
     except Exception as e:
         print(f"ERROR: {e}")
         return False
+
+def apply_noise(image, noise_level=0.5, noise_types=None):
+    """
+    画像にノイズを適用する関数
+    
+    Parameters:
+    - image: ノイズを適用する画像（PIL.Image）
+    - noise_level: ノイズの強度（0.0〜1.0）
+    - noise_types: 適用するノイズの種類のリスト（例：['gaussian', 'dct', 'shot', 'speckle']）
+    
+    Returns:
+    - ノイズが適用された画像（PIL.Image）
+    """
+    if noise_types is None:
+        noise_types = ['gaussian', 'dct']  # デフォルトのノイズタイプ
+    
+    # PIL画像をNumPy配列に変換
+    img_array = np.array(image).astype(np.float32)
+    
+    # ガウシアンノイズ
+    if 'gaussian' in noise_types:
+        img_array = apply_gaussian_noise(img_array, noise_level)
+    
+    # DCTノイズ
+    if 'dct' in noise_types:
+        img_array = apply_dct_noise(img_array, noise_level)
+    
+    # ショットノイズ
+    if 'shot' in noise_types:
+        img_array = apply_shot_noise(img_array, noise_level)
+    
+    # スペックルノイズ
+    if 'speckle' in noise_types:
+        img_array = apply_speckle_noise(img_array, noise_level)
+    
+    # NumPy配列をPIL画像に戻す
+    img_array = np.clip(img_array, 0, 255).astype(np.uint8)
+    return Image.fromarray(img_array)
+
+def apply_single_noise(image, noise_type, noise_level=0.5):
+    """
+    画像に単一のノイズを適用する関数
+    
+    Parameters:
+    - image: ノイズを適用する画像（PIL.Image）
+    - noise_type: 適用するノイズの種類（'gaussian', 'dct', 'shot', 'speckle'）
+    - noise_level: ノイズの強度（0.0〜1.0）
+    
+    Returns:
+    - ノイズが適用された画像（PIL.Image）
+    """
+    img_array = np.array(image).astype(np.float32)
+    
+    if noise_type == 'gaussian':
+        img_array = apply_gaussian_noise(img_array, noise_level)
+    elif noise_type == 'dct':
+        img_array = apply_dct_noise(img_array, noise_level)
+    elif noise_type == 'shot':
+        img_array = apply_shot_noise(img_array, noise_level)
+    elif noise_type == 'speckle':
+        img_array = apply_speckle_noise(img_array, noise_level)
+    
+    img_array = np.clip(img_array, 0, 255).astype(np.uint8)
+    return Image.fromarray(img_array)
+
+def apply_gaussian_noise(img_array, noise_level):
+    """
+    ガウシアンノイズを適用する関数
+    
+    Parameters:
+    - img_array: ノイズを適用する画像（NumPy配列）
+    - noise_level: ノイズレベル（0.0〜1.0）
+    
+    Returns:
+    - ノイズが適用された画像（NumPy配列）
+    """
+    # ノイズレベルを2-11の範囲にマッピング
+    std_dev = 2.0 + noise_level * 9.0  # 0.0→2.0, 1.0→11.0
+    
+    # ガウシアンノイズを生成
+    noise = np.random.normal(0, std_dev, img_array.shape)
+    
+    # 画像にノイズを追加
+    noisy_img = img_array + noise
+    
+    return noisy_img
+
+def apply_dct_noise(img_array, noise_level):
+    """
+    DCT（離散コサイン変換）ノイズを適用する関数
+    
+    Parameters:
+    - img_array: ノイズを適用する画像（NumPy配列）
+    - noise_level: ノイズレベル（0.0〜1.0）
+    
+    Returns:
+    - ノイズが適用された画像（NumPy配列）
+    """
+    # DCT係数の増幅量を±1～±5の範囲にマッピング
+    amplify_factor = 1.0 + noise_level * 4.0  # 0.0→1.0, 1.0→5.0
+    
+    # 画像の各チャネルに対して処理
+    h, w, c = img_array.shape
+    for i in range(c):
+        # 2D DCT変換
+        dct_coeffs = dct(dct(img_array[:, :, i].T, norm='ortho').T, norm='ortho')
+        
+        # 高周波成分を強調するマスクを作成
+        mask = np.ones_like(dct_coeffs)
+        
+        # 高周波領域を特定（画像サイズに応じて調整）
+        freq_threshold = int((1.0 - noise_level * 0.5) * min(h, w) / 3)
+        
+        # 高周波領域を増幅または減衰
+        if random.random() > 0.5:  # 50%の確率で増幅
+            mask[freq_threshold:h-freq_threshold, freq_threshold:w-freq_threshold] = amplify_factor
+        else:  # 50%の確率で減衰
+            mask[freq_threshold:h-freq_threshold, freq_threshold:w-freq_threshold] = 1.0 / amplify_factor
+        
+        # DCT係数にマスクを適用
+        dct_coeffs = dct_coeffs * mask
+        
+        # 逆DCT変換
+        img_array[:, :, i] = idct(idct(dct_coeffs, norm='ortho').T, norm='ortho').T
+    
+    return img_array
+
+def apply_shot_noise(img_array, noise_level):
+    """
+    ショットノイズ（塩コショウノイズ）を適用する関数
+    
+    Parameters:
+    - img_array: ノイズを適用する画像（NumPy配列）
+    - noise_level: ノイズレベル（0.0〜1.0）
+    
+    Returns:
+    - ノイズが適用された画像（NumPy配列）
+    """
+    # ノイズの密度をさらに弱めて0.01%～0.15%の範囲にマッピング
+    density = 0.0001 + noise_level * 0.0014  # 0.0→0.01%, 1.0→0.15%
+    
+    # 塩（白）と胡椒（黒）のマスクを生成
+    salt_mask = np.random.random(img_array.shape[:2]) < density / 2
+    pepper_mask = np.random.random(img_array.shape[:2]) < density / 2
+    
+    # 画像のコピーを作成
+    noisy_img = img_array.copy()
+    
+    # 塩（白）とコショウ（黒）のノイズを適用
+    for i in range(img_array.shape[2]):  # 各色チャネルに対して
+        noisy_img[:, :, i][salt_mask] = 255
+        noisy_img[:, :, i][pepper_mask] = 0
+    
+    return noisy_img
+
+def apply_speckle_noise(img_array, noise_level):
+    """
+    スペックルノイズを適用する関数
+    
+    Parameters:
+    - img_array: ノイズを適用する画像（NumPy配列）
+    - noise_level: ノイズレベル（0.0〜1.0）
+    
+    Returns:
+    - ノイズが適用された画像（NumPy配列）
+    """
+    # ノイズの強度を0.1%～1.5%の範囲にマッピング
+    intensity = 0.001 + noise_level * 0.014  # 0.0→0.1%, 1.0→1.5%
+    
+    # ノイズを生成（平均1、分散に強度を反映）
+    noise = np.random.normal(1, intensity, img_array.shape)
+    
+    # 乗法的ノイズ（画素値にノイズを乗算）
+    noisy_img = img_array * noise
+    
+    return noisy_img
 
 def apply_watermark(base_image, watermark_path, opacity=0.6, invert=False):
     """
@@ -230,7 +461,7 @@ def apply_marice_logo(base_image, logo_path, margin=24, position='random'):
             
             # 画像が小さすぎる場合はロゴを配置しない
             if base_width < new_width + margin * 2 or base_height < new_height + margin * 2:
-                print("画像が小さすぎるため、ロゴを配置しません")
+                print("Image too small to place logo")
                 return base_image
             
             # ロゴを配置する四隅の座標を計算（マージンを考慮）
@@ -246,16 +477,16 @@ def apply_marice_logo(base_image, logo_path, margin=24, position='random'):
                 # ランダムに位置を選択
                 position_key = random.choice(list(positions.keys()))
                 paste_position = positions[position_key]
-                print(f"ランダムに選択された位置: {position_key}")
+                print(f"Selected position: {position_key}")
             elif position in positions:
                 # 指定された位置を使用
                 paste_position = positions[position]
-                print(f"指定された位置: {position}")
+                print(f"Using position: {position}")
             else:
                 # 不明な位置の場合はランダム
                 position_key = random.choice(list(positions.keys()))
                 paste_position = positions[position_key]
-                print(f"不明な位置指定、ランダムに選択: {position_key}")
+                print(f"Unknown position, randomly selected: {position_key}")
             
             # ベース画像がRGBA形式でない場合、変換
             if base_image.mode != 'RGBA':
@@ -279,9 +510,123 @@ def apply_marice_logo(base_image, logo_path, margin=24, position='random'):
             return result
             
     except Exception as e:
-        print(f"マリス・ロゴ適用エラー: {e}")
+        print(f"Logo application error: {e}")
         # エラーが発生した場合は元の画像を返す
         return base_image
+
+def process_metadata(image_path, output_path, metadata_options):
+    """
+    画像のメタデータを処理する関数
+    
+    Parameters:
+    - image_path: 入力画像のパス
+    - output_path: 出力画像のパス
+    - metadata_options: メタデータ処理オプション
+    """
+    try:
+        # 画像を開く
+        img = Image.open(image_path)
+        format = img.format  # 元の画像フォーマットを保存
+        
+        # メタデータ削除オプションが有効な場合
+        if metadata_options.get('remove_metadata', True):
+            # すべてのメタデータを削除（空のデータで上書き）
+            exif_dict = {"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None}
+        else:
+            # 既存のメタデータを保持（存在する場合）
+            try:
+                exif_bytes = img.info.get('exif', b'')
+                if exif_bytes:
+                    exif_dict = piexif.load(exif_bytes)
+                else:
+                    exif_dict = {"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None}
+            except:
+                # エラーが発生した場合は空のメタデータで初期化
+                exif_dict = {"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None}
+        
+        # フェイクメタデータ追加オプションが有効な場合
+        if metadata_options.get('add_fake_metadata', True):
+            fake_type = metadata_options.get('fake_metadata_type', 'random')
+            
+            # ランダム選択の場合
+            if fake_type == 'random':
+                fake_type = random.choice(['paint', 'old_camera', 'screenshot'])
+                
+            # 選択されたタイプに基づいてフェイクメタデータを生成
+            if fake_type == 'paint':
+                # ペイントソフトのメタデータ
+                exif_dict["0th"][piexif.ImageIFD.Software] = "Adobe Photoshop".encode('utf-8')
+                exif_dict["0th"][piexif.ImageIFD.Make] = "Adobe Systems".encode('utf-8')
+                exif_dict["Exif"][piexif.ExifIFD.UserComment] = "Created with Adobe Photoshop".encode('utf-8')
+                
+            elif fake_type == 'old_camera':
+                # 古いカメラのメタデータ
+                exif_dict["0th"][piexif.ImageIFD.Make] = "NIKON".encode('utf-8')
+                exif_dict["0th"][piexif.ImageIFD.Model] = "COOLPIX P900".encode('utf-8')
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = datetime.datetime(
+                    random.randint(2010, 2023), 
+                    random.randint(1, 12),
+                    random.randint(1, 28)
+                ).strftime("%Y:%m:%d %H:%M:%S").encode('utf-8')
+                
+            elif fake_type == 'screenshot':
+                # スクリーンショットのメタデータ
+                exif_dict["0th"][piexif.ImageIFD.Software] = "Windows Snipping Tool".encode('utf-8')
+                exif_dict["0th"][piexif.ImageIFD.Make] = "Microsoft Windows".encode('utf-8')
+                exif_dict["Exif"][piexif.ExifIFD.UserComment] = "Screenshot".encode('utf-8')
+        
+        # AI学習禁止フラグ追加オプションが有効な場合
+        if metadata_options.get('add_no_ai_flag', True):
+            # 複数の場所にAI学習禁止情報を埋め込む
+            add_special_no_ai_markers(exif_dict)
+        
+        # 変更したEXIFデータをバイナリに変換
+        exif_bytes = piexif.dump(exif_dict)
+        
+        # 出力画像の保存（メタデータ付き）
+        # 注：PILの保存関数は一部のフォーマットでのみメタデータをサポート
+        if format == 'JPEG':
+            img.save(output_path, format='JPEG', exif=exif_bytes, quality=95)
+        elif format == 'PNG':
+            img.save(output_path, format='PNG', exif=exif_bytes)
+        elif format == 'WEBP':
+            img.save(output_path, format='WEBP', exif=exif_bytes, quality=95)
+        else:
+            # その他のフォーマットではJPEGに変換して保存
+            img = img.convert('RGB')
+            img.save(output_path, format='JPEG', exif=exif_bytes, quality=95)
+        
+        print(f"Metadata processing completed for {output_path}")
+        return True
+        
+    except Exception as e:
+        print(f"Metadata processing error: {e}")
+        # エラーが発生した場合は元の画像をそのまま使用
+        return False
+
+def add_special_no_ai_markers(exif_dict):
+    """AIによる使用を禁止する特殊マーカーを追加"""
+    
+    # 1. NoAI標準形式（提案形式）
+    noai_json = json.dumps({
+        "usage_restriction": "no_ai_training",
+        "license": "no_ai",
+        "creator_intent": "exclude_from_ai_datasets"
+    })
+    exif_dict["Exif"][piexif.ExifIFD.UserComment] = noai_json.encode('utf-8')
+    
+    # 2. 著作権情報とAI制限情報
+    copyright_text = "© No AI usage permitted. Not for AI training or generation."
+    exif_dict["0th"][piexif.ImageIFD.Copyright] = copyright_text.encode('utf-8')
+    
+    # 3. 複数のフィールドに分散して埋め込み（検出回避が困難に）
+    exif_dict["0th"][piexif.ImageIFD.Software] = "NoAI-Protected".encode('utf-8')
+    exif_dict["0th"][piexif.ImageIFD.DocumentName] = "Protected from AI training".encode('utf-8')
+    
+    # 4. アーティスト情報
+    exif_dict["0th"][piexif.ImageIFD.Artist] = "Protected by m-alice".encode('utf-8')
+    
+    return exif_dict
 
 if __name__ == "__main__":
     # コマンドライン引数の解析

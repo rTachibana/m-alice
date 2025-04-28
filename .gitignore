@@ -184,5 +184,5 @@ TailwindCheatSheet.md
 # user files
 src/output/*
 src/input/*
-
+user-settings.json
 *.psd

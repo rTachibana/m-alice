@@ -154,7 +154,7 @@ const setupPythonLibraries = async () => {
     });
     
     // 必要なライブラリをインストール
-    const libraries = ['pillow'];
+    const libraries = ['pillow', 'numpy', 'scipy'];
     const pipPath = path.join(pythonDir, 'Scripts', 'pip.exe');
     
     for (const lib of libraries) {
@@ -370,9 +370,15 @@ function setupIPCHandlers() {
                 opacity: options.watermarkOpacity,
                 invert: options.invertWatermark || false,
                 resize: options.resize,
-                noise_level: parseInt(options.noiseLevel) / 100, // 0~1の範囲に変換
+                noise_level: parseInt(options.noiseLevel) / 7, // 0-7の値を0-1の範囲に変換
+                noise_types: options.noiseTypes || ['gaussian', 'dct'], // ノイズタイプを追加
                 // ロゴ位置の設定を追加
-                logo_position: options.logoPosition || 'random'
+                logo_position: options.logoPosition || 'random',
+                // メタデータオプションの追加 (キャメルケースをスネークケースに変換)
+                remove_metadata: options.removeMetadata,
+                add_fake_metadata: options.addFakeMetadata,
+                fake_metadata_type: options.fakeMetadataType,
+                add_no_ai_flag: options.addNoAIFlag
             };
 
             // JSONとしてシリアライズ
@@ -532,6 +538,88 @@ function setupIPCHandlers() {
         } catch (error) {
             console.error('Error getting watermarks:', error);
             return { success: false, message: error.message };
+        }
+    });
+
+    // メタデータを取得するハンドラを登録
+    ipcMain.handle('get-image-metadata', async (event, imagePath) => {
+        try {
+            console.log('Getting metadata for:', imagePath);
+            
+            // ファイルが存在するか確認
+            if (!fs.existsSync(imagePath)) {
+                return {
+                    success: false,
+                    message: 'ファイルが見つかりません'
+                };
+            }
+            
+            // 環境変数にPython実行ファイルのパスを設定
+            const pythonPath = path.join(__dirname, '../../python/python.exe');
+            
+            // バックエンドスクリプトのパス
+            const scriptPath = path.join(__dirname, '../backend/get_metadata.py');
+            
+            // Pythonスクリプトの実行
+            const result = await new Promise((resolve, reject) => {
+                // PythonプロセスでJSONを受け取るためのバッファ
+                let stdoutData = '';
+                let stderrData = '';
+                
+                // Pythonプロセスを実行
+                const pythonProcess = spawn(pythonPath, [
+                    scriptPath,
+                    imagePath
+                ]);
+                
+                // 標準出力からデータを受け取る
+                pythonProcess.stdout.on('data', (data) => {
+                    stdoutData += data.toString();
+                });
+                
+                // 標準エラー出力からデータを受け取る
+                pythonProcess.stderr.on('data', (data) => {
+                    stderrData += data.toString();
+                    console.error('Python stderr:', data.toString());
+                });
+                
+                // プロセスが終了したときの処理
+                pythonProcess.on('close', (code) => {
+                    if (code !== 0) {
+                        console.error(`Python process exited with code ${code}: ${stderrData}`);
+                        reject(new Error(`Python process exited with code ${code}: ${stderrData}`));
+                        return;
+                    }
+                    
+                    try {
+                        // Python処理の結果をJSONとしてパース
+                        const parsedData = JSON.parse(stdoutData);
+                        resolve(parsedData);
+                    } catch (error) {
+                        console.error('Failed to parse Python output:', error);
+                        console.error('Raw output:', stdoutData);
+                        reject(new Error('メタデータの解析に失敗しました'));
+                    }
+                });
+                
+                // エラーイベントのハンドリング
+                pythonProcess.on('error', (error) => {
+                    console.error('Failed to start Python process:', error);
+                    reject(new Error('Pythonプロセスの実行に失敗しました'));
+                });
+            });
+            
+            return {
+                success: true,
+                metadata: result
+            };
+            
+        } catch (error) {
+            console.error('Error getting metadata:', error);
+            return {
+                success: false,
+                message: error.message || 'メタデータの取得に失敗しました'
+            };
         }
     });
 }
