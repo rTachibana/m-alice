@@ -186,6 +186,30 @@ document.addEventListener('DOMContentLoaded', () => {
         updateNoiseLevelText(noiseSlider.value);
     });
 
+    // マスタードノイズプリセットのチェックボックス要素を追加
+    const mustardPreset = document.getElementById('mustardPreset');
+
+    // マスタードノイズプリセットのチェックボックスのイベントリスナーを追加
+    if (mustardPreset) {
+        mustardPreset.addEventListener('change', () => {
+            if (mustardPreset.checked) {
+                // プリセットが選択された場合の処理
+                // ノイズタイプのチェックボックスを更新（ガウシアン、DCT、マスタード）
+                document.querySelectorAll('input[name="noiseTypes"]').forEach(checkbox => {
+                    // マスタードノイズプリセットで使用するノイズタイプ
+                    const presetNoiseTypes = ['gaussian', 'dct', 'mustard'];
+                    checkbox.checked = presetNoiseTypes.includes(checkbox.value);
+                });
+                
+                // ノイズレベルを適切な値に設定（中程度のレベル）
+                noiseSlider.value = 3;
+                updateNoiseLevelText(noiseSlider.value);
+                
+                console.log('Mustard noise preset applied');
+            }
+        });
+    }
+
     // Process button click handler
     processBtn.addEventListener('click', async () => {
         if (!selectedImagePath) {
@@ -196,6 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show processing indication
             processBtn.disabled = true;
             processBtn.textContent = '処理中...';
+            
+            // マスタードノイズプリセットが選択されているかチェック
+            const isMustardPresetActive = mustardPreset && mustardPreset.checked;
             
             // Collect processing options
             const options = {
@@ -213,8 +240,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 removeMetadata: userSettings ? userSettings.removeMetadata : true,
                 addFakeMetadata: userSettings ? userSettings.addFakeMetadata : true,
                 fakeMetadataType: userSettings ? userSettings.fakeMetadataType : 'random',
-                addNoAIFlag: userSettings ? userSettings.addNoAIFlag : true
+                addNoAIFlag: userSettings ? userSettings.addNoAIFlag : true,
+                // マスタードプリセットフラグを追加
+                mustardPreset: isMustardPresetActive
             };
+            
+            // マスタードプリセットが選択されている場合、ノイズタイプを上書き
+            if (isMustardPresetActive) {
+                options.noiseTypes = ['gaussian', 'dct', 'mustard'];
+            }
             
             // Send to main process for processing
             const result = await ipcRenderer.invoke('process-image', options);
@@ -373,14 +407,20 @@ document.addEventListener('DOMContentLoaded', () => {
             img.src = `${selectedImagePath}?t=${new Date().getTime()}`; // キャッシュ回避
             beforeImage.appendChild(img);
             
-            // Update file name display with original file name
+            // 出力形式の取得（userSettingsから、または未読み込みの場合はデフォルトpng）
+            const outputFormat = userSettings ? userSettings.outputFormat || 'png' : 'png';
+            
+            // 元のファイル名から拡張子を除去
+            const filenameWithoutExt = path.parse(originalFileName).name;
+            
+            // Update file name display with original file name and correct output format
             defaultName.textContent = originalFileName;
-            outputName.textContent = `maliced-${originalFileName}`;
+            outputName.textContent = `maliced-${filenameWithoutExt}.${outputFormat}`;
             
             // Enable process button
             processBtn.disabled = false;
             
-            console.log('Image selected:', selectedImagePath, 'Original file name:', originalFileName);
+            console.log('Image selected:', selectedImagePath, 'Original file name:', originalFileName, 'Output format:', outputFormat);
         } catch (error) {
             console.error('Error handling selected image:', error);
             showModal('エラー', '画像の読み込みに失敗しました。別の画像を試してください。');
@@ -390,14 +430,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add event listener to open output folder when output image is clicked
     afterImage.addEventListener('click', (e) => {
         if (selectedImagePath && originalFileName) {
+            // 出力形式の取得（userSettingsから、または未読み込みの場合はデフォルトpng）
+            const outputFormat = userSettings ? userSettings.outputFormat || 'png' : 'png';
+            
+            // 元のファイル名から拡張子を除去
+            const filenameWithoutExt = path.parse(originalFileName).name;
+            
+            // 正しい出力ファイルパスを生成
             const outputFilePath = path.join(
                 path.dirname(selectedImagePath).replace('input', 'output'),
-                `maliced-${originalFileName}`
+                `maliced-${filenameWithoutExt}.${outputFormat}`
             );
             console.log('Clicking output image for file:', outputFilePath);
             
-            // 画像をクリックしたらフォルダを開く（元の挙動に戻す）
-            ipcRenderer.invoke('show-item-in-folder', outputFilePath);
+            // 新しいハンドラを使用してフォルダを開く
+            ipcRenderer.invoke('open-output-folder', outputFilePath);
         }
     });
     
@@ -448,6 +495,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const fakeMetadataType = document.getElementById('fakeMetadataType').value;
             const addNoAIFlag = document.getElementById('addNoAIFlag').checked;
             
+            // 出力形式の設定を取得
+            const outputFormat = document.querySelector('input[name="outputFormat"]:checked').value;
+            
             // 他の設定値も保持（UIの現在の状態から）
             const settings = {
                 logoPosition,
@@ -462,14 +512,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 removeMetadata: removeMetadata,
                 addFakeMetadata: addFakeMetadata,
                 fakeMetadataType: fakeMetadataType,
-                addNoAIFlag: addNoAIFlag
+                addNoAIFlag: addNoAIFlag,
+                // 出力形式設定を追加
+                outputFormat: outputFormat
             };
             
             // 設定を保存
             const result = await ipcRenderer.invoke('save-settings', settings);
             
             if (result.success) {
+                // 保存成功後に設定をユーザー設定変数に反映
                 userSettings = settings;
+                
+                // 画像が選択されている場合は、出力ファイル名表示も更新
+                if (selectedImagePath && originalFileName) {
+                    const filenameWithoutExt = path.parse(originalFileName).name;
+                    outputName.textContent = `maliced-${filenameWithoutExt}.${outputFormat}`;
+                }
+                
                 showModal('設定', '設定を保存しました');
                 closeSettingsModal();
             } else {

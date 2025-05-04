@@ -185,4 +185,4 @@ TailwindCheatSheet.md
 src/output/*
 src/input/*
 user-settings.json
-*.psd
+*.code-workspace

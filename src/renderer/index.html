@@ -171,7 +171,32 @@
                                 <label>
                                     <input type="checkbox" name="noiseTypes" value="shot"> Shot noise (Salt & Pepper)
                                 </label>
+                                <label>
+                                    <input type="checkbox" name="noiseTypes" value="himalayan"> Himalayan Salt & Pepper
+                                </label>
+                                <label>
+                                    <input type="checkbox" name="noiseTypes" value="mustard"> Mustard Noise
+                                </label>
                                 <p>* Shot noise は非常に強い影響がでます</p>
+                                <p>* Himalayan Salt & Pepper は Shot noise にピンク色の要素を追加します</p>
+                                <p>* Mustard Noise は特徴的な黄褐色の粒子ノイズで、AI学習を効果的に妨害します</p>
+                            </div>
+                        </div>
+                        <hr>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Output Format</h4>
+                        <div class="output-format-options">
+                            <p>Choose the output image format:</p>
+                            <div class="radio-list">
+                                <label>
+                                    <input type="radio" name="outputFormat" value="png" checked> PNG (Default)
+                                    <small>Best quality and compatibility</small>
+                                </label>
+                                <label>
+                                    <input type="radio" name="outputFormat" value="webp"> WebP (Lossless)
+                                    <small>Smaller file size with full protection effect</small>
+                                </label>
                             </div>
                         </div>
                         <hr>
@@ -215,6 +240,6 @@
             </div>
         </div>
     </div>
-    <script src="index.js"></script>
+    <script src="js/index.js"></script>
 </body>
 </html>
