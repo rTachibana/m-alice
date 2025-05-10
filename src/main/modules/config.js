@@ -21,7 +21,7 @@ const pythonExePath = path.join(
 const inputDir = path.join(appRoot, 'src', 'input');
 const outputDir = path.join(appRoot, 'src', 'output');
 
-// ディレクトリの存在確認・作成
+// ディレクトリの存在確認と作成
 const ensureDirectoriesExist = () => {
     const fs = require('fs');
     if (!fs.existsSync(inputDir)) {

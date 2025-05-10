@@ -1,9 +1,11 @@
+const path = require('path');
+const modalUI = require(path.join(__dirname, './modal'));
+const settingsService = require(path.join(__dirname, '../services/settings'));
+const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
+
 /**
  * 設定UIモジュール - 設定画面の表示と操作を管理
  */
-const modalUI = require('./modal');
-const settingsService = require('../services/settings');
-const ipcBridge = require('../utils/ipcBridge');
 
 // DOM要素の参照
 let settingsModalOverlay;

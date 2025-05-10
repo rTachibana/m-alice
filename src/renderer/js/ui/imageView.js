@@ -1,9 +1,10 @@
 /**
  * 画像表示UIモジュール - 画像の表示と操作を管理
  */
-const fileHandler = require('../utils/fileHandler');
-const imageProcessService = require('../services/imageProcess');
-const modalUI = require('./modal');
+const path = require('path');
+const fileHandler = require(path.join(__dirname, '../utils/fileHandler'));
+const imageProcessService = require(path.join(__dirname, '../services/imageProcess'));
+const modalUI = require(path.join(__dirname, './modal'));
 
 // DOM要素と状態の参照
 let beforeImage;

@@ -2,6 +2,7 @@
 const { ipcRenderer } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { showModal, closeModal, toggleDetails } = require("./js/ui/modal");
 
 // Global variables
 let selectedImagePath = null;
@@ -18,10 +19,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const watermarkToggle = document.getElementById('watermarkToggle');
     const watermarkSelect = document.getElementById('watermarkSelect');
     const invertWatermarkToggle = document.getElementById('invertWatermarkToggle');
+    const enableOutlineToggle = document.getElementById('enableOutlineToggle');
     const noiseSlider = document.getElementById('noiseSlider');
     const watermarkOpacity = document.getElementById('watermarkOpacity');
     const opacityValue = document.getElementById('opacityValue');
     const noiseLevelText = document.getElementById('noiseLevelText');
+    const watermarkSize = document.getElementById('watermarkSize');
+    const sizeValue = document.getElementById('sizeValue');
+    
+    // アウトライン色選択関連の要素
+    const outlineColorControls = document.getElementById('outlineColorControls');
+    const colorPreview = document.getElementById('colorPreview');
+    const redSlider = document.getElementById('redSlider');
+    const greenSlider = document.getElementById('greenSlider');
+    const blueSlider = document.getElementById('blueSlider');
+    const redValue = document.getElementById('redValue');
+    const greenValue = document.getElementById('greenValue');
+    const blueValue = document.getElementById('blueValue');
+    const autoColorBtn = document.getElementById('autoColorBtn');
     
     // モーダル関連の要素
     const modalOverlay = document.getElementById('modalOverlay');
@@ -35,24 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 直近の処理済み画像のパスを保持する変数
     let lastProcessedImagePath = null;
-
-    // モーダル表示関数
-    function showModal(title, message, isProcessingComplete = false) {
-        modalTitle.textContent = title;
-        modalMessage.textContent = message;
-        
-        // 処理完了モーダルの場合は詳細表示ボタンを表示
-        if (isProcessingComplete && lastProcessedImagePath) {
-            modalDetailsContainer.style.display = 'block';
-            // 詳細ボタンの状態をリセット
-            showDetailsBtn.classList.remove('active');
-            modalDetails.style.display = 'none';
-        } else {
-            modalDetailsContainer.style.display = 'none';
-        }
-        
-        modalOverlay.classList.add('show');
-    }
     
     // モーダルを閉じる関数
     function closeModal() {
@@ -89,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
                                 
                                 // エラーの場合は特別処理
-                                if (category === 'エラー') {
+                                if (category === 'Error') {
                                     metadataContent += `<tr><td>メッセージ</td><td>${items}</td></tr>`;
                                     continue;
                                 }
@@ -132,13 +129,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Enable/disable watermark selection based on toggle
     watermarkToggle.addEventListener('change', () => {
-        watermarkSelect.disabled = !watermarkToggle.checked;
-        invertWatermarkToggle.disabled = !watermarkToggle.checked;
+        const isEnabled = watermarkToggle.checked;
+        watermarkSelect.disabled = !isEnabled;
+        invertWatermarkToggle.disabled = !isEnabled;
+        enableOutlineToggle.disabled = !isEnabled;
+        
+        // アウトライン色コントロールも連動
+        outlineColorControls.style.opacity = isEnabled ? '1' : '0.5';
+        outlineColorControls.style.pointerEvents = isEnabled ? 'auto' : 'none';
+        
+        watermarkSize.disabled = !isEnabled;
+        watermarkOpacity.disabled = !isEnabled;
     });
 
     // Update opacity value display
     watermarkOpacity.addEventListener('input', () => {
         opacityValue.textContent = `${watermarkOpacity.value}%`;
+    });
+
+    // Update watermark size value display
+    watermarkSize.addEventListener('input', () => {
+        sizeValue.textContent = `${watermarkSize.value}%`;
     });
 
     // ノイズレベルの表示を更新する関数
@@ -233,9 +244,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 applyWatermark: watermarkToggle.checked,
                 watermarkType: watermarkToggle.checked ? watermarkSelect.value : null,
                 invertWatermark: watermarkToggle.checked && invertWatermarkToggle.checked,
+                enableOutline: watermarkToggle.checked && enableOutlineToggle.checked, // アウトライン設定を追加
+                watermarkSize: watermarkToggle.checked ? watermarkSize.value / 100 : 0.5, // ウォーターマークサイズを0.0-1.0の範囲で設定
                 resize: document.querySelector('input[name="resize"]:checked').value,
                 watermarkOpacity: Math.max(0.1, watermarkOpacity.value / 100), // 最小値を0.1に制限
                 logoPosition: userSettings ? userSettings.logoPosition : 'random', // ロゴ位置の設定を追加
+                // アウトラインカラーを追加
+                outline_color: watermarkToggle.checked ? [
+                    parseInt(redSlider.value),
+                    parseInt(greenSlider.value),
+                    parseInt(blueSlider.value)
+                ] : null,
                 // メタデータオプションを追加
                 removeMetadata: userSettings ? userSettings.removeMetadata : true,
                 addFakeMetadata: userSettings ? userSettings.addFakeMetadata : true,
@@ -272,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error processing image:', error);
-            showModal('エラー', `処理に失敗しました: ${error.message}`);
+            showModal('Error', '処理に失敗しました: ' + error.message);
         } finally {
             processBtn.disabled = false;
             processBtn.textContent = "Infuse Malice";
@@ -303,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // ファイルがイメージかどうか確認
             if (!file.type.startsWith('image/')) {
-                showModal('エラー', '画像ファイルを選択してください');
+                showModal('Error', '画像ファイルを選択してください');
                 return;
             }
             
@@ -332,20 +351,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     } catch (error) {
                         console.error('Error processing file data:', error);
-                        showModal('エラー', `ファイルの処理に失敗しました: ${error.message}`);
+                        showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
                     }
                 };
                 
                 reader.onerror = () => {
                     console.error('Error reading file');
-                    showModal('エラー', 'ファイルの読み込みに失敗しました');
+                    showModal('Error', 'ファイルの読み込みに失敗しました');
                 };
                 
                 // ファイルをバイナリデータとして読み込む
                 reader.readAsArrayBuffer(file);
             } catch (error) {
                 console.error('Error handling dropped file:', error);
-                showModal('エラー', `ファイルの処理に失敗しました: ${error.message}`);
+                showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
             }
         }
     });
@@ -384,11 +403,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Error processing selected file:', error);
-                showModal('エラー', `ファイルの処理に失敗しました: ${error.message}`);
+                showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
             }
         } catch (error) {
             console.error('Error selecting image:', error);
-            showModal('エラー', '画像の選択に失敗しました。もう一度お試しください。');
+            showModal('Error', '画像の選択に失敗しました。もう一度お試しください。');
         }
     });
     
@@ -423,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Image selected:', selectedImagePath, 'Original file name:', originalFileName, 'Output format:', outputFormat);
         } catch (error) {
             console.error('Error handling selected image:', error);
-            showModal('エラー', '画像の読み込みに失敗しました。別の画像を試してください。');
+            showModal('Error', '画像の読み込みに失敗しました。別の画像を試してください。');
         }
     }
 
@@ -505,9 +524,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 watermarkEnabled: watermarkToggle.checked,
                 watermarkType: watermarkSelect.value,
                 invertWatermark: invertWatermarkToggle.checked,
+                enableOutline: enableOutlineToggle.checked,
+                watermarkSize: watermarkSize.value,
                 watermarkOpacity: watermarkOpacity.value,
                 resize: document.querySelector('input[name="resize"]:checked').value,
                 noiseTypes: noiseTypes,
+                // アウトラインの色設定を追加
+                outlineColor: {
+                    r: parseInt(redSlider.value),
+                    g: parseInt(greenSlider.value),
+                    b: parseInt(blueSlider.value)
+                },
                 // メタデータ設定を追加
                 removeMetadata: removeMetadata,
                 addFakeMetadata: addFakeMetadata,
@@ -537,7 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error saving settings:', error);
-            showModal('エラー', `設定の保存に失敗しました: ${error.message}`);
+            showModal('Error', `設定の保存に失敗しました: ${error.message}`);
         }
     }
     
@@ -558,8 +585,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 watermarkSelect.disabled = !userSettings.watermarkEnabled;
                 invertWatermarkToggle.checked = userSettings.invertWatermark;
                 invertWatermarkToggle.disabled = !userSettings.watermarkEnabled;
+                
+                // 新しい設定値をUIに反映
+                if ('enableOutline' in userSettings) {
+                    enableOutlineToggle.checked = userSettings.enableOutline;
+                }
+                enableOutlineToggle.disabled = !userSettings.watermarkEnabled;
+                
+                if ('watermarkSize' in userSettings) {
+                    watermarkSize.value = userSettings.watermarkSize;
+                    sizeValue.textContent = `${userSettings.watermarkSize}%`;
+                }
+                watermarkSize.disabled = !userSettings.watermarkEnabled;
+                
                 watermarkOpacity.value = userSettings.watermarkOpacity;
                 opacityValue.textContent = `${userSettings.watermarkOpacity}%`;
+                watermarkOpacity.disabled = !userSettings.watermarkEnabled;
                 document.querySelector(`input[name="resize"][value="${userSettings.resize}"]`).checked = true;
                 
                 // メタデータ設定の反映
@@ -602,6 +643,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // デフォルト値を設定オブジェクトに追加
                     userSettings.noiseTypes = defaultNoiseTypes;
+                }
+                
+                // アウトラインの色設定を反映（設定が存在する場合）
+                if (userSettings.outlineColor) {
+                    redSlider.value = userSettings.outlineColor.r || 255;
+                    greenSlider.value = userSettings.outlineColor.g || 255;
+                    blueSlider.value = userSettings.outlineColor.b || 255;
+                    // 色プレビューを更新
+                    colorPreview.style.backgroundColor = `rgb(${redSlider.value}, ${greenSlider.value}, ${blueSlider.value})`;
+                    redValue.textContent = redSlider.value;
+                    greenValue.textContent = greenSlider.value;
+                    blueValue.textContent = blueSlider.value;
+                }
+                
+                // ウォーターマークが無効な場合はアウトライン色コントロールも無効化
+                if (!userSettings.watermarkEnabled) {
+                    outlineColorControls.style.opacity = '0.5';
+                    outlineColorControls.style.pointerEvents = 'none';
                 }
                 
                 console.log('Settings loaded:', userSettings);
@@ -663,56 +722,70 @@ document.addEventListener('DOMContentLoaded', () => {
     // ウォーターマークの選択肢を読み込む
     async function loadWatermarkOptions() {
         try {
-            // セレクトボックスをクリア
             watermarkSelect.innerHTML = '';
-            
-            // ウォーターマーク一覧を取得
-            const result = await ipcRenderer.invoke('get-watermarks');
-            
-            if (result.success && result.watermarks && result.watermarks.length > 0) {
-                // 選択肢を追加
-                result.watermarks.forEach(watermark => {
-                    const option = document.createElement('option');
-                    option.value = watermark.value;
-                    option.textContent = watermark.displayName;
-                    watermarkSelect.appendChild(option);
-                });
-                
-                // 設定に保存されていた値があれば選択
-                if (userSettings && userSettings.watermarkType) {
-                    // 値が存在するか確認
-                    const exists = Array.from(watermarkSelect.options).some(opt => opt.value === userSettings.watermarkType);
-                    if (exists) {
-                        watermarkSelect.value = userSettings.watermarkType;
-                    }
+
+            const watermarkDirs = [
+                path.join(__dirname, '../watermark'),
+                path.join(__dirname, '../../user_data/watermark') // Corrected path
+            ];
+
+            console.log('Loading watermark options from:', watermarkDirs);
+
+            const watermarkFiles = watermarkDirs.flatMap(dir => {
+                if (fs.existsSync(dir)) {
+                    return fs.readdirSync(dir).map(file => path.join(dir, file));
                 }
-                
-                console.log('Watermark options loaded');
-            } else {
-                console.warn('No watermarks found or error occurred');
-                // デフォルトの選択肢を追加
-                const defaultOptions = [
-                    { value: 'no_ai', displayName: 'No AI' },
-                    { value: 'all_rights_reserved', displayName: 'All Rights Reserved' }
-                ];
-                
-                defaultOptions.forEach(option => {
-                    const opt = document.createElement('option');
-                    opt.value = option.value;
-                    opt.textContent = option.displayName;
-                    watermarkSelect.appendChild(opt);
-                });
-            }
+                return [];
+            });
+
+            watermarkFiles.forEach(filePath => {
+                const fileName = path.basename(filePath, path.extname(filePath)).replace(/_/g, ' ');
+                const option = document.createElement('option');
+                option.value = filePath;
+                option.textContent = fileName;
+                watermarkSelect.appendChild(option);
+            });
+
+            console.log('Watermark options loaded:', watermarkFiles);
         } catch (error) {
             console.error('Error loading watermark options:', error);
-            // エラー時はデフォルトの選択肢を追加
-            const fallbackOption = document.createElement('option');
-            fallbackOption.value = 'no_ai';
-            fallbackOption.textContent = 'No AI';
-            watermarkSelect.appendChild(fallbackOption);
         }
     }
-    
+
+    // Function to load logos from both default and user_data directories
+    async function loadLogoOptions() {
+        try {
+            const logoSelect = document.getElementById('logoSelect');
+            if (!logoSelect) {
+                console.warn('Logo select element not found');
+                return;
+            }
+            logoSelect.innerHTML = '';
+
+            const logoDirs = [
+                path.join(__dirname, '../logo'),
+                path.join(__dirname, '../../../user_data/logo')
+            ];
+
+            const logoFiles = logoDirs.flatMap(dir => {
+                if (fs.existsSync(dir)) {
+                    return fs.readdirSync(dir).map(file => path.join(dir, file));
+                }
+                return [];
+            });
+
+            logoFiles.forEach(filePath => {
+                const fileName = path.basename(filePath, path.extname(filePath)).replace(/_/g, ' ');
+                const option = document.createElement('option');
+                option.value = filePath;
+                option.textContent = fileName;
+                logoSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading logo options:', error);
+        }
+    }
+
     // 設定モーダルのボタンにイベントリスナーを追加
     settingsModalCloseBtn.addEventListener('click', closeSettingsModal);
     settingsCancelBtn.addEventListener('click', closeSettingsModal);
@@ -740,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await displayMetadata(lastProcessedImagePath);
             } catch (error) {
                 console.error('Error displaying metadata:', error);
-                showModal('エラー', `メタデータの表示に失敗しました: ${error.message}`);
+                showModal('Error', 'メタデータの表示に失敗しました: ' + error.message);
             }
         }
     });
@@ -769,7 +842,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
                         
                         // エラーの場合は特別処理
-                        if (category === 'エラー') {
+                        if (category === 'Error') {
                             metadataContent += `<tr><td>メッセージ</td><td>${items}</td></tr>`;
                             continue;
                         }
@@ -799,9 +872,56 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error displaying metadata:', error);
-            showModal('エラー', `メタデータの表示に失敗しました: ${error.message}`);
+            showModal('Error', `メタデータの表示に失敗しました: ${error.message}`);
         }
     }
+
+    // Call these functions during initialization
+    loadWatermarkOptions();
+    loadLogoOptions();
+
+    // アウトライン色選択のイベントハンドラを追加
+    function updateColorPreview() {
+        const r = parseInt(redSlider.value);
+        const g = parseInt(greenSlider.value);
+        const b = parseInt(blueSlider.value);
+        colorPreview.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+        redValue.textContent = r;
+        greenValue.textContent = g;
+        blueValue.textContent = b;
+    }
+
+    // 初期カラープレビューの更新
+    updateColorPreview();
+
+    // RGB各スライダーの変更イベント
+    redSlider.addEventListener('input', updateColorPreview);
+    greenSlider.addEventListener('input', updateColorPreview);
+    blueSlider.addEventListener('input', updateColorPreview);
+
+    // 自動色選択ボタンのイベント
+    autoColorBtn.addEventListener('click', () => {
+        // 自動色選択（例：ここでは白色に設定）
+        redSlider.value = 255;
+        greenSlider.value = 255;
+        blueSlider.value = 255;
+        updateColorPreview();
+    });
+
+    // ウォーターマークトグルの変更時にアウトライン設定も連動して有効/無効化
+    watermarkToggle.addEventListener('change', () => {
+        const isEnabled = watermarkToggle.checked;
+        watermarkSelect.disabled = !isEnabled;
+        invertWatermarkToggle.disabled = !isEnabled;
+        enableOutlineToggle.disabled = !isEnabled;
+        
+        // アウトライン色コントロールも連動
+        outlineColorControls.style.opacity = isEnabled ? '1' : '0.5';
+        outlineColorControls.style.pointerEvents = isEnabled ? 'auto' : 'none';
+        
+        watermarkSize.disabled = !isEnabled;
+        watermarkOpacity.disabled = !isEnabled;
+    });
 });
 
 // Add metadata display functionality
@@ -844,6 +964,6 @@ async function displayImageMetadata(imagePath) {
         }
     } catch (error) {
         console.error('Error displaying metadata:', error);
-        showModal('エラー', `メタデータの表示に失敗しました: ${error.message}`);
+        showModal('Error', `メタデータの表示に失敗しました: ${error.message}`);
     }
 }

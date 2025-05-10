@@ -1,8 +1,9 @@
 # 画像保護ツール「m-Alice」仕様書
 
 ## 関連ファイル
+[セットアップ手順](setup_procedure.md)
 [実装状況](docs/implementation_status.md)
-[技術仕様書](docs/technical_specification.md)
+[技術仕様書](docs/dev/technical_specification.md)
 
 ---
 
@@ -61,7 +62,7 @@
 - リサイズ選択肢：
   - 小（推奨）：約500x500相当（総ピクセル数25万px以下、SD1.5防衛）
   - 中：約768x768相当（総ピクセル数約58万px以下、SDXL防衛）
-  - 無し（オリジナル解像度維持）
+  - 無し（1024x1024相当の約1メガピクセルを目標に調整）
 - SNS投稿時の画質には影響あり（警告表示）
 
 ---
@@ -183,16 +184,18 @@ m-Aliceは初回起動時に必要なPython環境とライブラリを自動的�
 - ウォーターマーク画像は `src/watermark/` ディレクトリに格納されています
   - 例: `all_rights_reserved.png`, `no_ai.png`
 - ユーザーはUIからウォーターマークを選択可能です
-- ウォーターマークの適用は `process.py` 内の `apply_watermark` 関数で処理されます（実装予定）
+- ウォーターマークの適用は `process.py` 内の `apply_watermark` 関数で処理されます
+- 合わせて `watermark_process.py` を確認してください。
 
 ### 現在の開発状況
 - フロントエンドのUI実装が完了しました
-- バックエンドのPython処理スクリプト（process.py）は未実装です
+- バックエンドのPython処理スクリプト（process.py）は未完成です
 - 次のステップとして、Python処理スクリプトの実装と、ElectronからPythonスクリプトの呼び出しを行います
 
 ### テスト状況
 - テストスクリプトは `tests/` ディレクトリに格納されます
   - `test_process.py`: Pythonバックエンドのテスト
+  - `test_watermark_processor.py`: Pythonバックエンドでのwatermarkのテスト
   - `renderer.test.js`: フロントエンドのテスト
 - テスト結果は `logs/test_results.log` に記録されます
 

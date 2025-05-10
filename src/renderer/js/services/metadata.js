@@ -1,7 +1,5 @@
-/**
- * メタデータサービス - メタデータ関連のパラメータ生成
- */
-const ipcBridge = require('../utils/ipcBridge');
+const path = require('path');
+const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
 
 /**
  * 画像のメタデータを取得

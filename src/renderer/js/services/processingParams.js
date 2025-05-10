@@ -2,6 +2,26 @@
  * 画像処理パラメータサービス - UI設定からPython処理パラメータを構築
  */
 const metadataService = require('./metadata');
+const path = require('path');
+const fs = require('fs');
+
+/**
+ * ウォーターマークパスを解決
+ * @param {string} watermarkType - ウォーターマークの種類
+ * @returns {string} ウォーターマークのパス
+ */
+const resolveWatermarkPath = (watermarkType) => {
+    const userPath = path.join(__dirname, '../../../user_data/watermark', watermarkType);
+    const defaultPath = path.join(__dirname, '../../watermark', watermarkType);
+
+    if (fs.existsSync(userPath)) {
+        return userPath;
+    } else if (fs.existsSync(defaultPath)) {
+        return defaultPath;
+    } else {
+        throw new Error(`Watermark not found: ${watermarkType}`);
+    }
+};
 
 /**
  * UI設定からPython処理パラメータを構築
@@ -28,7 +48,7 @@ const buildProcessingParams = (settings, inputPath, outputPath) => {
         
         // ウォーターマークパラメータ
         add_watermark: settings.addWatermark || false,
-        watermark_type: settings.watermarkType || 'none',
+        watermark_type: settings.addWatermark ? resolveWatermarkPath(settings.watermarkType) : 'none',
         watermark_opacity: settings.watermarkOpacity || 0.5,
         watermark_position: settings.watermarkPosition || 'bottomRight'
     };

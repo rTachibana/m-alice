@@ -1,7 +1,9 @@
+const path = require('path');
+const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
+
 /**
  * 設定サービス - 設定の読み書きを抽象化
  */
-const ipcBridge = require('../utils/ipcBridge');
 
 // アプリケーション設定のデフォルト値
 const DEFAULT_SETTINGS = {

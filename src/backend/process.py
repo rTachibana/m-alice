@@ -1,6 +1,7 @@
 import sys
 import os
 import random
+import logging
 from PIL import Image, ImageDraw, ImageOps, ImageEnhance
 import numpy as np
 try:
@@ -43,147 +44,113 @@ def process_image(input_path, output_path, options=None):
         # 入力ファイルの拡張子を確認
         input_ext = os.path.splitext(input_path)[1].lower()
         if input_ext not in ['.png', '.jpg', '.jpeg', '.webp']:
-            raise ValueError(f"サポートされていないファイル形式です: {input_ext}。PNG、JPG、WEBPのみサポートしています。")
+            raise ValueError(f"Unsupported file format: {input_ext}. Only PNG, JPG, and WEBP are supported.")
         
         # 画像を開く
         with Image.open(input_path) as img:
             processed_img = img.copy()
             
-            # マスタードノイズプリセットが選択されている場合
-            if options and options.get('mustardPreset'):
-                # 特定の順序でノイズを適用：Gaussian → DCT → Watermark → Mustard Noise → Logo → Final Gaussian
+            # 1. リサイズ処理
+            if options and options.get('resize'):
+                resize_option = options.get('resize')
+                processed_img = resize_image(processed_img, resize_option)
+            
+            # 2. DCTノイズを適用
+            if options and 'noise_level' in options and 'dct' in options.get('noise_types', []):
+                noise_level = options.get('noise_level', 0.5)
+                processed_img = apply_single_noise(
+                    processed_img,
+                    noise_type='dct',
+                    noise_level=noise_level
+                )
+            
+            # 3-6. ランダムノイズを適用
+            random_noise_types = []
+            if options and 'noise_level' in options:
+                noise_types = options.get('noise_types', [])
                 
-                # 1. リサイズ処理（オプションがある場合）を最初に適用
-                if options.get('resize'):
-                    resize_option = options.get('resize')
-                    processed_img = resize_image(processed_img, resize_option)
+                # ランダム化するノイズタイプを収集
+                if 'gaussian' in noise_types:
+                    random_noise_types.append('gaussian')
+                if 'speckle' in noise_types:
+                    random_noise_types.append('speckle')
+                if 'shot' in noise_types:
+                    random_noise_types.append('shot')
+                if 'himalayan' in noise_types:
+                    random_noise_types.append('himalayan')
                 
-                # 2. ガウシアンノイズを適用
-                if 'noise_level' in options and 'gaussian' in options.get('noise_types', []):
+                # ノイズタイプをシャッフル
+                random.shuffle(random_noise_types)
+                
+                # シャッフルしたノイズを順に適用
+                for noise_type in random_noise_types:
                     noise_level = options.get('noise_level', 0.5)
                     processed_img = apply_single_noise(
                         processed_img,
-                        noise_type='gaussian',
+                        noise_type=noise_type,
                         noise_level=noise_level
                     )
+            
+            # 7. Mustardノイズを適用
+            if options and 'noise_level' in options and 'mustard' in options.get('noise_types', []):
+                noise_level = options.get('noise_level', 0.5)
+                processed_img = apply_single_noise(
+                    processed_img,
+                    noise_type='mustard',
+                    noise_level=noise_level
+                )
+            
+            # 8. ウォーターマークを適用
+            if options.get('apply_watermark'):
+                # ウォーターマークのパラメータを取得（スネークケースに統一）
+                watermark_path = options.get('watermark_path')
+                watermark_opacity = options.get('watermark_opacity', 0.6)
+                invert_watermark = options.get('invert_watermark', False)
+                enable_outline = options.get('enable_outline', True)
+                watermark_size = options.get('watermark_size', 0.5)
+                outline_color = options.get('outline_color', None)  # アウトラインの色をオプションから取得
                 
-                # 3. DCTノイズを適用
-                if 'noise_level' in options and 'dct' in options.get('noise_types', []):
-                    noise_level = options.get('noise_level', 0.5)
-                    processed_img = apply_single_noise(
-                        processed_img,
-                        noise_type='dct',
-                        noise_level=noise_level
-                    )
+                logging.debug(f"Applying watermark: {watermark_path}")
+                logging.debug(f"Watermark params - opacity: {watermark_opacity}, invert: {invert_watermark}, enable_outline: {enable_outline}, size_factor: {watermark_size}, outline_color: {outline_color}")
                 
-                # 4. ウォーターマーク処理（有効な場合）
-                if options.get('apply_watermark'):
-                    watermark_path = options.get('watermark_path')
-                    opacity = options.get('opacity', 0.6)  # デフォルト透過率60%
-                    invert = options.get('invert', False)  # 白黒反転オプション
-                    
+                # 有効なウォーターマークパスがある場合のみ適用
+                if watermark_path and os.path.exists(watermark_path):
                     processed_img = apply_watermark(
                         processed_img, 
                         watermark_path, 
-                        opacity=opacity,
-                        invert=invert
+                        opacity=watermark_opacity,
+                        invert=invert_watermark,
+                        enable_outline=enable_outline,
+                        size_factor=watermark_size,
+                        outline_color=outline_color  # アウトラインの色を渡す
                     )
+                else:
+                    logging.error(f"Watermark path invalid or file not found: {watermark_path}")
+            
+            # 9. ロゴを配置
+            processed_img = apply_logo_if_needed(processed_img, options)
+            
+            # 10. 最終仕上げのガウシアンノイズを適用
+            final_noise_level = 0.2  # Lv.2相当の弱いノイズ
+            processed_img = apply_single_noise(
+                processed_img,
+                noise_type='gaussian',
+                noise_level=final_noise_level
+            )
+            
+            # 11. メタデータ処理を実行
+            if options and (options.get('remove_metadata', True) or 
+                        options.get('add_fake_metadata', True) or 
+                        options.get('add_no_ai_flag', True)):
                 
-                # 5. マスタードノイズを適用
-                if 'noise_level' in options and 'mustard' in options.get('noise_types', []):
-                    noise_level = options.get('noise_level', 0.5)
-                    processed_img = apply_single_noise(
-                        processed_img,
-                        noise_type='mustard',
-                        noise_level=noise_level
-                    )
+                metadata_options = {
+                    'remove_metadata': options.get('remove_metadata', True),
+                    'add_fake_metadata': options.get('add_fake_metadata', True),
+                    'fake_metadata_type': options.get('fake_metadata_type', 'random'),
+                    'add_no_ai_flag': options.get('add_no_ai_flag', True),
+                }
                 
-                # 6. ロゴを配置
-                processed_img = apply_logo_if_needed(processed_img, options)
-                
-                # 7. 最終仕上げのガウシアンノイズを適用（Lv.2固定）
-                final_noise_level = 0.2  # Lv.2相当の弱いノイズ
-                processed_img = apply_single_noise(
-                    processed_img,
-                    noise_type='gaussian',
-                    noise_level=final_noise_level
-                )
-            else:
-                # 通常の画像処理フロー（ノイズ順序をランダム化）
-                
-                # 1. リサイズ処理（オプションがある場合）を最初に適用
-                if options and options.get('resize'):
-                    resize_option = options.get('resize')
-                    processed_img = resize_image(processed_img, resize_option)
-                
-                # 2. DCTノイズを最初に適用（固定順）
-                if options and 'noise_level' in options and 'dct' in options.get('noise_types', []):
-                    noise_level = options.get('noise_level', 0.5)
-                    processed_img = apply_single_noise(
-                        processed_img,
-                        noise_type='dct',
-                        noise_level=noise_level
-                    )
-                
-                # 3. DCTノイズからウォーターマークまでのノイズをランダム順で適用
-                random_noise_types = []
-                if options and 'noise_level' in options:
-                    noise_types = options.get('noise_types', [])
-                    
-                    # ランダム化するノイズタイプを収集
-                    if 'speckle' in noise_types:
-                        random_noise_types.append('speckle')
-                    if 'gaussian' in noise_types:
-                        random_noise_types.append('gaussian')
-                    if 'shot' in noise_types:
-                        random_noise_types.append('shot')
-                    if 'himalayan' in noise_types:
-                        random_noise_types.append('himalayan')
-                    
-                    # ノイズタイプをシャッフル
-                    random.shuffle(random_noise_types)
-                    
-                    # シャッフルしたノイズを順に適用
-                    for noise_type in random_noise_types:
-                        noise_level = options.get('noise_level', 0.5)
-                        processed_img = apply_single_noise(
-                            processed_img,
-                            noise_type=noise_type,
-                            noise_level=noise_level
-                        )
-                
-                # 4. マスタードノイズを適用（ウォーターマークの直前に固定）
-                if options and 'noise_level' in options and 'mustard' in options.get('noise_types', []):
-                    noise_level = options.get('noise_level', 0.5)
-                    processed_img = apply_single_noise(
-                        processed_img,
-                        noise_type='mustard',
-                        noise_level=noise_level
-                    )
-                
-                # 5. ウォーターマーク処理（有効な場合）
-                if options and options.get('apply_watermark'):
-                    watermark_path = options.get('watermark_path')
-                    opacity = options.get('opacity', 0.6)  # デフォルト透過率60%
-                    invert = options.get('invert', False)  # 白黒反転オプション
-                    
-                    processed_img = apply_watermark(
-                        processed_img, 
-                        watermark_path, 
-                        opacity=opacity,
-                        invert=invert
-                    )
-                
-                # 6. ロゴを配置
-                processed_img = apply_logo_if_needed(processed_img, options)
-                
-                # 7. 最終仕上げのガウシアンノイズを適用（Lv.2固定）
-                final_noise_level = 0.2  # Lv.2相当の弱いノイズ
-                processed_img = apply_single_noise(
-                    processed_img,
-                    noise_type='gaussian',
-                    noise_level=final_noise_level
-                )
+                process_metadata(output_path, output_path, metadata_options)
             
             # 出力形式の設定を処理
             output_format = options.get('output_format', 'png') if options else 'png'
@@ -202,21 +169,7 @@ def process_image(input_path, output_path, options=None):
                 processed_img.save(output_path, format='WEBP', lossless=True, quality=100)
             else:  # pngがデフォルト
                 processed_img.save(output_path, format='PNG')
-            
-            # メタデータ処理を実行
-            if options and (options.get('remove_metadata', True) or 
-                        options.get('add_fake_metadata', True) or 
-                        options.get('add_no_ai_flag', True)):
-                
-                metadata_options = {
-                    'remove_metadata': options.get('remove_metadata', True),
-                    'add_fake_metadata': options.get('add_fake_metadata', True),
-                    'fake_metadata_type': options.get('fake_metadata_type', 'random'),
-                    'add_no_ai_flag': options.get('add_no_ai_flag', True),
-                }
-                
-                process_metadata(output_path, output_path, metadata_options)
-            
+        
         print("SUCCESS")
         return True
     except Exception as e:
@@ -363,7 +316,7 @@ def apply_all_effects(img_array, watermark_path=None, strength=1.0):
         try:
             processed_img = apply_watermark(processed_img, watermark_path)
         except Exception as e:
-            print(f"ウォーターマーク適用エラー: {e}")
+            print(f"Error applying watermark: {e}")
     
     # 5. 最終仕上げフェーズ
     # 最終ガウシアンノイズを適用（Lv.2）

@@ -2,7 +2,7 @@
  * 画像処理サービス - 画像処理パラメータの構築と処理実行を管理
  */
 const path = require('path');
-const ipcBridge = require('../utils/ipcBridge');
+const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
 const settingsService = require('./settings');
 
 /**

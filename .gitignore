@@ -179,10 +179,9 @@ package-lock.json
 python/*
 pytest.ini
 tests/
-TailwindCheatSheet.md
 
 # user files
 src/output/*
 src/input/*
+user_data/*
 user-settings.json
-*.code-workspace

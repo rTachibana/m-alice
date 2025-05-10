@@ -1,4 +1,5 @@
 const { app, dialog } = require('electron');
+const path = require('path');
 
 // モジュールをインポート
 const config = require('./modules/config');
@@ -20,7 +21,7 @@ app.on('ready', async () => {
         // Python環境のセットアップ
         await pythonSetup.setupPython();
         
-        // 入出力ディレクトリの確認・作成
+        // 入出力ディレクトリの確認と作成
         config.ensureDirectoriesExist();
 
         // ローディングウィンドウを閉じる
@@ -29,7 +30,14 @@ app.on('ready', async () => {
         }
 
         // メインウィンドウを作成
-        const mainWindow = windowManager.createMainWindow();
+        const mainWindow = windowManager.createMainWindow({
+            webPreferences: {
+                contextIsolation: true, // Enable context isolation for security
+                nodeIntegration: false, // Disable node integration
+                enableRemoteModule: false, // Disable remote module
+                preload: path.join(__dirname, 'preload.js') // Use preload script for secure communication
+            }
+        });
 
         // IPC通信ハンドラーのセットアップ
         ipcHandlers.setupIPCHandlers();

@@ -1,8 +1,9 @@
 /**
  * モーダルUIモジュール - 通知とメタデータ表示を管理
  */
-const ipcBridge = require('../utils/ipcBridge');
-const fileHandler = require('../utils/fileHandler');
+const path = require('path');
+const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
+const fileHandler = require(path.join(__dirname, '../utils/fileHandler'));
 
 // 処理済み画像パスの保持
 let lastProcessedImagePath = null;
@@ -16,34 +17,36 @@ let lastProcessedImagePath = null;
  */
 const showModal = (title, message, showOpenButton = false, filePath = null) => {
     const modal = document.getElementById('modal');
+    if (!modal) {
+        console.error('Modal element not found');
+        return; // Exit the function if modal element is not found
+    }
     const modalTitle = document.getElementById('modalTitle');
     const modalMessage = document.getElementById('modalMessage');
     const modalOpenBtn = document.getElementById('modalOpenBtn');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
-    
-    // モーダルの内容を設定
+
     modalTitle.textContent = title;
     modalMessage.textContent = message;
-    
-    // フォルダを開くボタンの表示/非表示を設定
+
     if (showOpenButton && filePath) {
         modalOpenBtn.style.display = 'inline-block';
         modalOpenBtn.onclick = () => {
-            fileHandler.showItemInFolder(filePath);
+            require('electron').shell.showItemInFolder(filePath);
             closeModal();
         };
     } else {
         modalOpenBtn.style.display = 'none';
     }
-    
-    // 閉じるボタンのイベントハンドラ
+
     modalCloseBtn.onclick = closeModal;
-    
-    // モーダルを表示
     modal.classList.add('show');
-    
-    // ESCキーでモーダルを閉じる
-    document.addEventListener('keydown', handleEscKey);
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeModal();
+        }
+    }, { once: true });
 };
 
 /**
@@ -62,7 +65,6 @@ const handleEscKey = (event) => {
 const closeModal = () => {
     const modal = document.getElementById('modal');
     modal.classList.remove('show');
-    document.removeEventListener('keydown', handleEscKey);
 };
 
 /**
@@ -132,9 +134,23 @@ const setProcessedImagePath = (path) => {
     lastProcessedImagePath = path;
 };
 
+const modalOverlay = document.getElementById('modalOverlay');
+const modalTitle = document.getElementById('modalTitle');
+const modalMessage = document.getElementById('modalMessage');
+const modalDetailsContainer = document.getElementById('modalDetailsContainer');
+const showDetailsBtn = document.getElementById('showDetailsBtn');
+const modalDetails = document.getElementById('modalDetails');
+
+function toggleDetails() {
+    showDetailsBtn.classList.toggle('active');
+    modalDetails.style.display = modalDetails.style.display === 'block' ? 'none' : 'block';
+}
+
 module.exports = {
     showModal,
     displayMetadata,
     setProcessedImagePath,
-    lastProcessedImagePath
+    lastProcessedImagePath,
+    closeModal,
+    toggleDetails
 };

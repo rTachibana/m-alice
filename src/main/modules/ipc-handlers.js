@@ -113,7 +113,7 @@ function setupIPCHandlers() {
             // ウォーターマークパス
             let watermarkPath = null;
             if (options.applyWatermark && options.watermarkType) {
-                watermarkPath = path.join(config.appRoot, 'src', 'watermark', `${options.watermarkType}.png`);
+                watermarkPath = resolveWatermarkPath(options.watermarkType);
                 console.log('Using watermark:', watermarkPath);
             }
 
@@ -121,8 +121,10 @@ function setupIPCHandlers() {
             const processingOptions = {
                 apply_watermark: options.applyWatermark,
                 watermark_path: watermarkPath,
-                opacity: options.watermarkOpacity,
-                invert: options.invertWatermark || false,
+                watermark_opacity: options.watermarkOpacity,
+                invert_watermark: options.invertWatermark || false,
+                enable_outline: options.enableOutline,
+                watermark_size: options.watermarkSize,
                 resize: options.resize,
                 noise_level: parseInt(options.noiseLevel) / 7, // 0-7の値を0-1の範囲に変換
                 noise_types: options.noiseTypes || ['gaussian', 'dct'], // ノイズタイプを追加
@@ -153,8 +155,9 @@ function setupIPCHandlers() {
                 let stderrData = '';
 
                 pythonProcess.stdout.on('data', (data) => {
-                    stdoutData += data.toString();
-                    console.log(`Python stdout: ${data}`);
+                    // Log Python stdout in a cleaner format
+                    const cleanData = data.toString().replace(/\r?\n/g, ' ').trim();
+                    console.log(`Python stdout: ${cleanData}`);
                 });
 
                 pythonProcess.stderr.on('data', (data) => {
@@ -220,7 +223,7 @@ function setupIPCHandlers() {
     // 設定関連のハンドラー
     ipcMain.handle('save-settings', async (event, settings) => {
         try {
-            const settingsPath = path.join(config.appRoot, 'user-settings.json');
+            const settingsPath = path.join(config.appRoot, 'user_data', 'user-settings.json');
             fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
             console.log('Settings saved to:', settingsPath);
             return { success: true };
@@ -232,7 +235,7 @@ function setupIPCHandlers() {
     
     ipcMain.handle('load-settings', async () => {
         try {
-            const settingsPath = path.join(config.appRoot, 'user-settings.json');
+            const settingsPath = path.join(config.appRoot, 'user_data', 'user-settings.json');
             
             if (!fs.existsSync(settingsPath)) {
                 // デフォルト設定を返す
@@ -401,6 +404,59 @@ function setupIPCHandlers() {
         }
     });
 }
+
+const resolveWatermarkPath = (watermarkType) => {
+    // 絶対パスの場合はそのまま使用
+    const isAbsolutePath = path.isAbsolute(watermarkType);
+    if (isAbsolutePath && fs.existsSync(watermarkType)) {
+        return watermarkType;
+    }
+
+    // 使用する可能性のある拡張子
+    const possibleExtensions = ['.png', '.svg'];
+    
+    // 既に拡張子がある場合はそのまま使用
+    const hasExtension = possibleExtensions.some(ext => watermarkType.toLowerCase().endsWith(ext));
+    
+    // 拡張子がない場合の検索用パターン
+    const baseWatermarkType = hasExtension ? watermarkType : watermarkType;
+    
+    // 検索パス
+    let foundPath = null;
+
+    // 拡張子がすでにある場合
+    if (hasExtension) {
+        const userPath = path.join(config.appRoot, 'user_data', 'watermark', baseWatermarkType);
+        const defaultPath = path.join(config.appRoot, 'src', 'watermark', baseWatermarkType);
+        
+        if (fs.existsSync(userPath)) {
+            console.log(`Found watermark at user path: ${userPath}`);
+            return userPath;
+        } else if (fs.existsSync(defaultPath)) {
+            console.log(`Found watermark at default path: ${defaultPath}`);
+            return defaultPath;
+        }
+    } 
+    // 拡張子がない場合は.pngと.svgを順に試す
+    else {
+        for (const ext of possibleExtensions) {
+            const userPath = path.join(config.appRoot, 'user_data', 'watermark', baseWatermarkType + ext);
+            const defaultPath = path.join(config.appRoot, 'src', 'watermark', baseWatermarkType + ext);
+            
+            if (fs.existsSync(userPath)) {
+                console.log(`Found watermark at user path: ${userPath}`);
+                return userPath;
+            } else if (fs.existsSync(defaultPath)) {
+                console.log(`Found watermark at default path: ${defaultPath}`);
+                return defaultPath;
+            }
+        }
+    }
+    
+    // 見つからなかった場合はエラー
+    console.error(`Watermark not found: ${watermarkType} (tried with extensions: ${possibleExtensions.join(', ')})`);
+    throw new Error(`Watermark not found: ${watermarkType}`);
+};
 
 module.exports = {
     setupIPCHandlers
