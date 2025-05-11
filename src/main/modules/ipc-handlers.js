@@ -274,13 +274,26 @@ function setupIPCHandlers() {
       if (!fs.existsSync(settingsPath)) {
         // デフォルト設定を返す
         const defaultSettings = {
-          logoPosition: 'random',
-          noiseLevel: 50,
+          logoPosition: 'bottom-right',
+          noiseLevel: 3,
+          noiseTypes: ['gaussian', 'dct'],
           watermarkEnabled: false,
           watermarkPath: 'no_ai',
           invertWatermark: false,
-          watermarkOpacity: 60,
-          resize: 'default'
+          enableOutline: true,
+          watermarkSize: 75,
+          watermarkOpacity: 75,
+          resize: 'original',
+          removeMetadata: true,
+          addFakeMetadata: false,
+          fakeMetadataType: 'generic',
+          addNoAIFlag: false,
+          outlineColor: {
+            r: 255,
+            g: 255,
+            b: 255
+          },
+          outputFormat: 'png'
         };
 
         // デフォルト設定を保存しておく
@@ -305,13 +318,26 @@ function setupIPCHandlers() {
         message: error.message,
         // エラーが発生した場合もデフォルト設定を返す
         settings: {
-          logoPosition: 'random',
-          noiseLevel: 50,
+          logoPosition: 'bottom-right',
+          noiseLevel: 3,
+          noiseTypes: ['gaussian', 'dct'],
           watermarkEnabled: false,
           watermarkPath: 'no_ai',
           invertWatermark: false,
-          watermarkOpacity: 60,
-          resize: 'default'
+          enableOutline: true,
+          watermarkSize: 75,
+          watermarkOpacity: 75,
+          resize: 'original',
+          removeMetadata: true,
+          addFakeMetadata: false,
+          fakeMetadataType: 'generic',
+          addNoAIFlag: false,
+          outlineColor: {
+            r: 255,
+            g: 255,
+            b: 255
+          },
+          outputFormat: 'png'
         }
       };
     }

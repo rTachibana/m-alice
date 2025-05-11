@@ -123,21 +123,36 @@ const saveSettings = async () => {
     const noiseSlider = document.getElementById('noiseSlider');
     const watermarkToggle = document.getElementById('watermarkToggle');
     const invertWatermarkToggle = document.getElementById('invertWatermarkToggle');
+    const enableOutlineToggle = document.getElementById('enableOutlineToggle');
     const watermarkOpacity = document.getElementById('watermarkOpacity');
+    const watermarkSize = document.getElementById('watermarkSize');
+    const redSlider = document.getElementById('redSlider');
+    const greenSlider = document.getElementById('greenSlider');
+    const blueSlider = document.getElementById('blueSlider');
     const settings = {
       logoPosition,
       noiseLevel: noiseSlider.value,
       watermarkEnabled: watermarkToggle.checked,
       watermarkPath: watermarkSelect.value,
       invertWatermark: invertWatermarkToggle.checked,
+      enableOutline: enableOutlineToggle ? enableOutlineToggle.checked : true,
+      watermarkSize: watermarkSize ? watermarkSize.value : 75,
       watermarkOpacity: watermarkOpacity.value,
       resize: document.querySelector('input[name="resize"]:checked').value,
       noiseTypes: noiseTypes,
+      // アウトラインの色設定を追加
+      outlineColor: {
+        r: redSlider ? parseInt(redSlider.value) : 255,
+        g: greenSlider ? parseInt(greenSlider.value) : 255,
+        b: blueSlider ? parseInt(blueSlider.value) : 255
+      },
       // メタデータ設定を追加
       removeMetadata: removeMetadata,
       addFakeMetadata: addFakeMetadata,
       fakeMetadataType: fakeMetadataType,
-      addNoAIFlag: addNoAIFlag
+      addNoAIFlag: addNoAIFlag,
+      // 出力形式設定
+      outputFormat: document.querySelector('input[name="outputFormat"]:checked')?.value || 'png'
     };
 
     // 設定を保存
@@ -179,8 +194,43 @@ const loadSettings = async () => {
     watermarkSelect.disabled = !userSettings.watermarkEnabled;
     invertWatermarkToggle.checked = userSettings.invertWatermark;
     invertWatermarkToggle.disabled = !userSettings.watermarkEnabled;
+
+    // アウトライン設定があれば反映
+    const enableOutlineToggle = document.getElementById('enableOutlineToggle');
+    if (enableOutlineToggle) {
+      enableOutlineToggle.checked = userSettings.enableOutline !== undefined ? userSettings.enableOutline : true;
+      enableOutlineToggle.disabled = !userSettings.watermarkEnabled;
+    }
+
+    // アウトライン色の設定があれば反映
+    if (userSettings.outlineColor) {
+      const redSlider = document.getElementById('redSlider');
+      const greenSlider = document.getElementById('greenSlider');
+      const blueSlider = document.getElementById('blueSlider');
+      if (redSlider) redSlider.value = userSettings.outlineColor.r || 255;
+      if (greenSlider) greenSlider.value = userSettings.outlineColor.g || 255;
+      if (blueSlider) blueSlider.value = userSettings.outlineColor.b || 255;
+
+      // カラープレビューの更新
+      const colorPreview = document.getElementById('colorPreview');
+      if (colorPreview) {
+        const r = userSettings.outlineColor.r || 255;
+        const g = userSettings.outlineColor.g || 255;
+        const b = userSettings.outlineColor.b || 255;
+        colorPreview.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      }
+    }
     watermarkOpacity.value = userSettings.watermarkOpacity;
     opacityValue.textContent = `${userSettings.watermarkOpacity}%`;
+
+    // ウォーターマークサイズの設定があれば反映
+    const watermarkSize = document.getElementById('watermarkSize');
+    const sizeValue = document.getElementById('sizeValue');
+    if (watermarkSize && userSettings.watermarkSize) {
+      watermarkSize.value = userSettings.watermarkSize;
+      if (sizeValue) sizeValue.textContent = `${userSettings.watermarkSize}%`;
+      watermarkSize.disabled = !userSettings.watermarkEnabled;
+    }
 
     // リサイズ設定
     document.querySelector(`input[name="resize"][value="${userSettings.resize}"]`).checked = true;
