@@ -16,7 +16,7 @@ def process_metadata(image_path, output_path, metadata_options):
         img = Image.open(image_path)
         format = img.format
         # メタデータ削除または保持
-        if metadata_options.get('remove_metadata', True):
+        if metadata_options.get('removeMetadata', True):
             exif_dict = {"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None}
         else:
             try:
@@ -25,8 +25,8 @@ def process_metadata(image_path, output_path, metadata_options):
             except:
                 exif_dict = {"0th":{}, "Exif":{}, "GPS":{}, "1st":{}, "thumbnail":None}
         # フェイクメタデータ
-        if metadata_options.get('add_fake_metadata', True):
-            fake_type = metadata_options.get('fake_metadata_type', 'random')
+        if metadata_options.get('addFakeMetadata', True):
+            fake_type = metadata_options.get('fakeMetadataType', 'random')
             if fake_type == 'random':
                 fake_type = __import__('random').choice(['paint', 'old_camera', 'screenshot'])
             if fake_type == 'paint':
@@ -46,7 +46,7 @@ def process_metadata(image_path, output_path, metadata_options):
                 exif_dict["0th"][piexif.ImageIFD.Make] = "Microsoft Windows".encode('utf-8')
                 exif_dict["Exif"][piexif.ExifIFD.UserComment] = "Screenshot".encode('utf-8')
         # AI学習禁止フラグ
-        if metadata_options.get('add_no_ai_flag', True):
+        if metadata_options.get('addNoAIFlag', True):
             exif_dict = add_special_no_ai_markers(exif_dict)
         exif_bytes = piexif.dump(exif_dict)
         # 保存

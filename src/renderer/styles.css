@@ -41,8 +41,8 @@ hr {
 }
 
 .container {
-    width: 80%;
-    min-width: 600px;
+    width: calc(100% - 80px);
+    min-width: 800px;
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;

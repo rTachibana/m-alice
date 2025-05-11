@@ -9,7 +9,7 @@ def apply_logo_if_needed(image, options=None):
     app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
     logo_path = os.path.join(app_root, 'src', 'logo', 'logo.png')
     if os.path.exists(logo_path):
-        logo_position = options.get('logo_position') if options and 'logo_position' in options else 'random'
+        logo_position = options.get('logoPosition') if options and 'logoPosition' in options else 'random'
         return apply_marice_logo(image, logo_path, position=logo_position)
     return image
 

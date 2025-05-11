@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>m-Alice - Anti-AI Learning Tool</title>
     <link rel="stylesheet" href="styles.css">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
 </head>
 <body>
     <!-- <h1>m-Alice</h1> -->
@@ -17,10 +17,6 @@
             </div>
         </aside>
         <main class="container">
-            <div id="languageSwitcher">
-                <button onclick="setLanguage('en')">English</button>
-                <button onclick="setLanguage('ja')">日本語</button>
-            </div>
             <div class="image-container">
                 <div class="image-box">
                     <div id="beforeImage" class="image-display">
@@ -49,18 +45,6 @@
             
             <div class="controls-container">
                 <div class="left-controls">
-                    <div class="control-group">
-                        <h3>Noise</h3>
-                        <div class="slider-container">
-                            <span>-</span>
-                            <input type="range" id="noiseSlider" min="0" max="7" value="3" step="1">
-                            <span>+</span>
-                        </div>
-                        <div class="noise-level-display">
-                            <span id="noiseLevelText">Moderate (Lv.4)</span>
-                        </div>
-                    </div>
-                    <hr>
                     <div class="control-group">
                         <h3>Watermark</h3>
                         <div class="watermark-toggle">
@@ -113,11 +97,10 @@
                             </div>
                             <button id="autoColorBtn" class="auto-color-btn">Auto Color</button>
                         </div>
-                        
-                        <div class="slider-option">
+                          <div class="slider-option">
                             <label for="watermarkOpacity">Watermark Opacity:</label>
                             <div class="slider-with-value">
-                                <input type="range" id="watermarkOpacity" name="watermarkOpacity" min="10" max="100" value="75">
+                                <input type="range" id="watermarkOpacity" name="watermarkOpacity" min="5" max="100" value="75">
                                 <span id="opacityValue">75%</span>
                             </div>
                         </div>
@@ -132,6 +115,18 @@
                 </div>
                 
                 <div class="right-controls">
+                    <div class="control-group">
+                        <h3>Noise</h3>
+                        <div class="slider-container">
+                            <span>-</span>
+                            <input type="range" id="noiseSlider" min="0" max="7" value="3" step="1">
+                            <span>+</span>
+                        </div>
+                        <div class="noise-level-display">
+                            <span id="noiseLevelText">Moderate (Lv.4)</span>
+                        </div>
+                    </div>
+                    <hr>
                     <div class="control-group">
                         <h3>Resize</h3>
                         <div class="resize-options">

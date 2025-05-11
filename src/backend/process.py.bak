@@ -2,8 +2,23 @@ import sys
 import os
 import random
 import logging
-from PIL import Image, ImageDraw, ImageOps, ImageEnhance
-import numpy as np
+from PIL import Image, ImageDraw, ImageOps, Image                # ウォーターマークパラメータの取得
+                watermarkPath = options.get('watermarkPath')
+                watermarkOpacity = options.get('watermarkOpacity', 0.6)
+                watermarkOpacityMin = options.get('watermarkOpacityMin', 0.05)  # HTML側の最小値
+                invertWatermark = options.get('invertWatermark', False)
+                enableOutline = options.get('enableOutline', True)
+                watermarkSize = options.get('watermarkSize', 0.5)
+                outlineColor = options.get('outlineColor', [255, 255, 255])  # デフォルト白色
+                
+                # HTMLで指定された最小値を適用
+                watermarkOpacity = max(watermarkOpacityMin, watermarkOpacity)
+                
+                # 詳細なログ出力
+                print(f"\n\n===== WATERMARK PROCESSING START =====")
+                print(f"Options received from frontend: {options}")
+                print(f"Watermark path: {watermarkPath}")
+                print(f"All watermark params:")rt numpy as np
 try:
     from scipy.fft import dct, idct  # modern SciPy
 except ImportError:
@@ -99,19 +114,15 @@ def process_image(input_path, output_path, options=None):
                     processed_img,
                     noise_type='mustard',
                     noise_level=noise_level
-                )            # 8. ウォーターマークを適用            if options.get('applyWatermark'):
+                )            # 8. ウォーターマークを適用
+            if options.get('applyWatermark'):
                 # ウォーターマークのパラメータを取得（キャメルケースに統一）
                 watermarkPath = options.get('watermarkPath')
                 watermarkOpacity = options.get('watermarkOpacity', 0.6)
-                # フロントエンドのHTMLから取得した最小値を使用
-                watermarkOpacityMin = options.get('watermarkOpacityMin', 0.05)
                 invertWatermark = options.get('invertWatermark', False)
                 enableOutline = options.get('enableOutline', True)
                 watermarkSize = options.get('watermarkSize', 0.5)
                 outlineColor = options.get('outlineColor', [255, 255, 255])  # デフォルト白色
-                
-                # HTMLから取得した最小値を適用
-                watermarkOpacity = max(watermarkOpacityMin, watermarkOpacity)
                 
                 # 詳細なログ出力
                 print(f"\n\n===== WATERMARK PROCESSING START =====")

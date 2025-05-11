@@ -1,4 +1,9 @@
-const { app, dialog } = require('electron');
+"use strict";
+
+const {
+  app,
+  dialog
+} = require('electron');
 const path = require('path');
 
 // モジュールをインポート
@@ -9,56 +14,58 @@ const ipcHandlers = require('./modules/ipc-handlers');
 
 // 起動時の処理
 app.on('ready', async () => {
-    let loadingWindow;
+  let loadingWindow;
+  try {
+    // システム情報のログ出力
+    config.logSystemInfo();
 
-    try {
-        // システム情報のログ出力
-        config.logSystemInfo();
-        
-        // ローディングウィンドウを表示
-        loadingWindow = windowManager.createLoadingWindow();
+    // ローディングウィンドウを表示
+    loadingWindow = windowManager.createLoadingWindow();
 
-        // Python環境のセットアップ
-        await pythonSetup.setupPython();
-        
-        // 入出力ディレクトリの確認と作成
-        config.ensureDirectoriesExist();
+    // Python環境のセットアップ
+    await pythonSetup.setupPython();
 
-        // ローディングウィンドウを閉じる
-        if (loadingWindow) {
-            loadingWindow.close();
-        }
+    // 入出力ディレクトリの確認と作成
+    config.ensureDirectoriesExist();
 
-        // メインウィンドウを作成
-        const mainWindow = windowManager.createMainWindow({
-            webPreferences: {
-                contextIsolation: true, // Enable context isolation for security
-                nodeIntegration: false, // Disable node integration
-                enableRemoteModule: false, // Disable remote module
-                preload: path.join(__dirname, 'preload.js') // Use preload script for secure communication
-            }
-        });
-
-        // IPC通信ハンドラーのセットアップ
-        ipcHandlers.setupIPCHandlers();
-        
-        // ウィンドウが閉じられたらアプリを終了
-        mainWindow.on('closed', () => {
-            app.quit();
-        });
-    } catch (err) {
-        console.error('Error during application startup:', err);
-        if (loadingWindow) {
-            loadingWindow.close();
-        }
-        dialog.showErrorBox('Error', `アプリケーションの起動に失敗しました: ${err.message}`);
-        app.quit();
+    // ローディングウィンドウを閉じる
+    if (loadingWindow) {
+      loadingWindow.close();
     }
+
+    // メインウィンドウを作成
+    const mainWindow = windowManager.createMainWindow({
+      webPreferences: {
+        contextIsolation: true,
+        // Enable context isolation for security
+        nodeIntegration: false,
+        // Disable node integration
+        enableRemoteModule: false,
+        // Disable remote module
+        preload: path.join(__dirname, 'preload.js') // Use preload script for secure communication
+      }
+    });
+
+    // IPC通信ハンドラーのセットアップ
+    ipcHandlers.setupIPCHandlers();
+
+    // ウィンドウが閉じられたらアプリを終了
+    mainWindow.on('closed', () => {
+      app.quit();
+    });
+  } catch (err) {
+    console.error('Error during application startup:', err);
+    if (loadingWindow) {
+      loadingWindow.close();
+    }
+    dialog.showErrorBox('Error', `アプリケーションの起動に失敗しました: ${err.message}`);
+    app.quit();
+  }
 });
 
 // 全てのウィンドウが閉じられたときの処理
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });

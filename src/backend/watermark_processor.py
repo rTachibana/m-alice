@@ -2,401 +2,282 @@ import os
 import random
 from PIL import Image, ImageDraw, ImageOps, ImageFilter
 import numpy as np
-try:
-    from sklearn.cluster import KMeans
-    KMEANS_AVAILABLE = True
-except ImportError:
-    KMEANS_AVAILABLE = False
-import logging
 from scipy.ndimage import binary_dilation, binary_erosion
+import logging
+import traceback
+import sys
 
-# Configure logging for debugging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(asctime)s - %(message)s')
+# Configure logging for debugging - fix duplicate timestamp and set level to INFO for better visibility
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def get_dominant_colors(image, n_colors=3):
-    """
-    画像から主要な色を抽出する
+# デバッグログを強制的に標準出力に出す
+def debug_log(message):
+    print(f"DEBUG_WM: {message}")
+    sys.stdout.flush()  # 即座に出力を反映
+    logging.info(message)
 
-    Parameters:
-    - image: 画像（PIL.Image）
-    - n_colors: 抽出する色の数
-
-    Returns:
-    - 色のリスト（RGBタプル）
-    """
-    if not KMEANS_AVAILABLE:
-        # sklearn.KMeansが利用できない場合のフォールバック
-        return [(255, 0, 0), (0, 0, 0), (255, 255, 255)]
-    
-    # リサイズして処理を高速化
-    img_array = np.array(image.resize((100, 100), Image.LANCZOS))
-    # 画像を1次元のピクセル配列に変換
-    pixels = img_array.reshape(-1, 3)
-    
-    # KMeansでクラスタリング
-    kmeans = KMeans(n_clusters=n_colors)
-    kmeans.fit(pixels)
-    
-    # クラスターの中心を色として返す
-    return [tuple(map(int, center)) for center in kmeans.cluster_centers_]
-
-def get_colors_around_mask(base_image, mask_image, n_colors=3, border_width=5):
-    """
-    ウォーターマーク周辺の色を抽出する
-
-    Parameters:
-    - base_image: 元画像（PIL.Image）
-    - mask_image: ウォーターマークのマスク（PIL.Image）
-    - n_colors: 抽出する色の数
-    - border_width: 周辺領域の幅
-
-    Returns:
-    - 色のリスト（RGBタプル）
-    """
-    if not KMEANS_AVAILABLE:
-        # sklearnが利用できない場合は単純に全体の色を使用
-        return get_dominant_colors(base_image, n_colors)
-    
-    # RGBAモードに変換
-    base = base_image.convert("RGBA")
-    mask = mask_image.convert("RGBA")
-    
-    # マスクのアルファチャンネルを取得
-    alpha = np.array(mask.split()[-1])
-    
-    # マスクの周辺領域を特定
-    dilated = binary_dilation(alpha > 0, iterations=border_width)
-    original = alpha > 0
-    boundary = dilated & ~original
-    
-    # 元画像の配列を取得
-    base_array = np.array(base)
-    
-    # 境界に該当するピクセルを抽出
-    color_samples = []
-    for y in range(alpha.shape[0]):
-        for x in range(alpha.shape[1]):
-            if y < base_array.shape[0] and x < base_array.shape[1] and boundary[y, x]:
-                color_samples.append(base_array[y, x][:3])
-    
-    if not color_samples:
-        return get_dominant_colors(base_image, n_colors)
-    
-    # KMeansでクラスタリング
-    color_samples = np.array(color_samples)
-    kmeans = KMeans(n_clusters=n_colors)
-    kmeans.fit(color_samples)
-    
-    # クラスターの中心を色として返す
-    return [tuple(map(int, center)) for center in kmeans.cluster_centers_]
-
-def get_watermark_colors(watermark, n_colors=2):
-    """
-    ウォーターマーク自体から主要な色を抽出する
-    
-    Parameters:
-    - watermark: ウォーターマーク画像（PIL.Image）
-    - n_colors: 抽出する色の数
-    
-    Returns:
-    - 色のリスト（RGBタプル）
-    """
-    if not KMEANS_AVAILABLE:
-        return [(255, 255, 255), (0, 0, 0)]
-    
-    # アルファチャンネルを取得
-    alpha = watermark.split()[-1]
-    alpha_array = np.array(alpha)
-    
-    # ウォーターマークのピクセルを取得（アルファ値が0より大きいピクセルのみ）
-    watermark_array = np.array(watermark.convert('RGB'))
-    pixels = []
-    
-    for y in range(alpha_array.shape[0]):
-        for x in range(alpha_array.shape[1]):
-            if alpha_array[y, x] > 50:  # ある程度不透明なピクセルのみを対象に
-                pixels.append(watermark_array[y, x])
-    
-    if not pixels:
-        return [(255, 255, 255), (0, 0, 0)]
-    
-    # KMeansでクラスタリング
-    pixels = np.array(pixels)
-    kmeans = KMeans(n_clusters=n_colors)
-    kmeans.fit(pixels)
-    
-    # クラスターの中心を色として返す
-    return [tuple(map(int, center)) for center in kmeans.cluster_centers_]
-
-def blend_colors(color1, color2, ratio):
-    """
-    2つの色をブレンドする
-    
-    Parameters:
-    - color1: 1つ目の色（RGBタプル）
-    - color2: 2つ目の色（RGBタプル）
-    - ratio: ブレンド比率（0.0〜1.0）、1.0が完全にcolor1
-    
-    Returns:
-    - ブレンドされた色（RGBタプル）
-    """
-    r = int(color1[0] * ratio + color2[0] * (1 - ratio))
-    g = int(color1[1] * ratio + color2[1] * (1 - ratio))
-    b = int(color1[2] * ratio + color2[2] * (1 - ratio))
-    return (r, g, b)
-
-def add_outline_with_colors(watermark, colors, border_width=5, opacity=0.8, overlap_factor=0.2):
-    """
-    ウォーターマークに複数の色でアウトラインを追加する（改良版）
-    
-    Parameters:
-    - watermark: ウォーターマーク画像（PIL.Image）
-    - colors: アウトライン色のリスト（RGBタプル）
-    - border_width: アウトラインの幅
-    - opacity: アウトラインの不透明度
-    - overlap_factor: ウォーターマークとアウトラインの重なり係数（0.0-1.0）
-                      値が大きいほど重なりが大きい
-    
-    Returns:
-    - アウトラインが追加されたウォーターマーク画像（PIL.Image）
-    """
-    # アルファチャンネルを取得
-    alpha = watermark.split()[-1]
-    alpha_array = np.array(alpha)
-    
-    # アウトライン画像を作成
-    outline_image = Image.new("RGBA", watermark.size, (0, 0, 0, 0))
-    
-    # 各色ごとに異なる幅のアウトラインを作成
-    color_count = len(colors)
-    width_per_color = max(1, border_width // color_count)
-    
-    # ウォーターマークのマスク縮小量（重なり用）
-    shrink_amount = int(border_width * overlap_factor)
-    
-    # ウォーターマークのマスクを少し縮小して重なりを作る
-    if shrink_amount > 0:
-        # マスクを縮小するための演算（エロージョン）
-        watermark_mask = alpha_array > 0
-        eroded_mask = binary_erosion(watermark_mask, iterations=shrink_amount)
-        # 元のマスクから縮小したマスクを引いて、重なり部分を特定
-        overlap_mask = watermark_mask & ~eroded_mask
-    else:
-        overlap_mask = np.zeros_like(alpha_array, dtype=bool)
-    
-    for i, color in enumerate(colors):
-        # この色のアウトライン範囲を計算
-        start_width = i * width_per_color
-        end_width = (i + 1) * width_per_color if i < color_count - 1 else border_width
-        
-        for w in range(start_width, end_width):
-            # マスクを指定の幅だけ拡張
-            dilated_mask = binary_dilation(alpha_array > 0, iterations=w+1)
-            # 拡張したマスクから元のアルファチャンネルを引いて外側の輪郭のみを取得
-            if w == 0:
-                outline_mask = dilated_mask & ~(alpha_array > 0)
-            else:
-                prev_dilated = binary_dilation(alpha_array > 0, iterations=w)
-                outline_mask = dilated_mask & ~prev_dilated
-            
-            # 重なり部分を考慮
-            outline_mask = outline_mask | (overlap_mask & (w < shrink_amount))
-            
-            # この輪郭に色を適用（外側ほど少し透明度を上げる）
-            # 透明度が外側に向かって少しずつ上がるように調整
-            fade_factor = 1.0 - w / border_width * 0.3
-            outline_color = color + (int(255 * opacity * fade_factor),)
-            draw = ImageDraw.Draw(outline_image)
-            
-            for y in range(outline_mask.shape[0]):
-                for x in range(outline_mask.shape[1]):
-                    if outline_mask[y, x]:
-                        draw.point((x, y), fill=outline_color)
-    
-    # 輪郭をぼかす処理を追加
-    outline_image = outline_image.filter(ImageFilter.GaussianBlur(radius=0.5))
-    
-    # アウトラインをウォーターマークの下に配置する順序で合成
-    result = Image.new("RGBA", watermark.size, (0, 0, 0, 0))
-    result.paste(outline_image, (0, 0), outline_image.split()[-1])
-    result.paste(watermark, (0, 0), watermark.split()[-1])
-    
-    return result
-
-def add_simple_outline(watermark, outline_color, border_width=5, opacity=0.8, overlap_factor=0.2):
+def add_simple_outline(watermark, outlineColor, borderWidth=5, opacity=0.8, overlapFactor=0.2):
     """
     ウォーターマークにシンプルな単色アウトラインを追加する
     
     Parameters:
     - watermark: ウォーターマーク画像（PIL.Image）
-    - outline_color: アウトライン色（RGBタプル）
-    - border_width: アウトラインの幅
+    - outlineColor: アウトライン色（RGBタプル）
+    - borderWidth: アウトラインの幅
     - opacity: アウトラインの不透明度
-    - overlap_factor: ウォーターマークとアウトラインの重なり係数
+    - overlapFactor: ウォーターマークとアウトラインの重なり係数
     
     Returns:
     - アウトラインが追加されたウォーターマーク画像（PIL.Image）
     """
-    # アルファチャンネルを取得
-    alpha = watermark.split()[-1]
-    alpha_array = np.array(alpha)
+    debug_log(f"----- OUTLINE PROCESSING START -----")
+    debug_log(f"add_simple_outline called with outlineColor: {outlineColor}, borderWidth: {borderWidth}")
+    try:
+        # アルファチャンネルを取得
+        if watermark.mode != 'RGBA':
+            watermark = watermark.convert('RGBA')
+            debug_log(f"Converted watermark to RGBA mode in add_simple_outline")
+        
+        alpha = watermark.split()[-1]
+        alpha_array = np.array(alpha)
+        debug_log(f"Got alpha channel with shape {alpha_array.shape}")
+          # アウトライン画像を作成
+        outline_image = Image.new("RGBA", watermark.size, (0, 0, 0, 0))
+        
+        # ウォーターマークのマスク縮小量（重なり用）
+        shrink_amount = int(borderWidth * overlapFactor)
+        debug_log(f"Using shrink amount: {shrink_amount}")
+        
+        # ウォーターマークのマスクを少し縮小して重なりを作る
+        if shrink_amount > 0:
+            watermark_mask = binary_erosion(alpha_array > 0, iterations=shrink_amount)
+            debug_log(f"Eroded watermark mask")
+        else:
+            watermark_mask = alpha_array > 0
+            debug_log(f"Using original watermark mask")
+        
+        # 拡張マスクを作成（アウトラインの形状）
+        dilated_mask = binary_dilation(alpha_array > 0, iterations=borderWidth)
+        outline_mask = dilated_mask & ~(watermark_mask)
+        debug_log(f"Created outline mask with shape {outline_mask.shape}, non-zero pixels: {np.sum(outline_mask)}")
+        
+        # アウトラインをRGBA画像に変換
+        outline_data = np.zeros((watermark.size[1], watermark.size[0], 4), dtype=np.uint8)
+        
+        # 色とアルファ値を設定
+        r, g, b = outlineColor
+        debug_log(f"Setting outline color to RGB: {r}, {g}, {b}")
+        outline_data[outline_mask] = [r, g, b, 255]
+        
+        # NumPy配列からPIL画像に変換
+        outline_pil = Image.fromarray(outline_data, 'RGBA')
+        
+        # アウトラインの不透明度を設定
+        if opacity < 1.0:
+            debug_log(f"Setting outline opacity to {opacity}")
+            outline_alpha = outline_pil.split()[-1]
+            outline_alpha = outline_alpha.point(lambda p: int(p * opacity))
+            outline_pil.putalpha(outline_alpha)
+            
+        # 元のウォーターマークとアウトラインを合成
+        result = Image.alpha_composite(outline_pil, watermark)
+        debug_log(f"Combined outline with watermark")
+        debug_log(f"----- OUTLINE PROCESSING FINISHED -----")
     
-    # アウトライン画像を作成
-    outline_image = Image.new("RGBA", watermark.size, (0, 0, 0, 0))
+        return result
     
-    # ウォーターマークのマスク縮小量（重なり用）
-    shrink_amount = int(border_width * overlap_factor)
-    
-    # ウォーターマークのマスクを少し縮小して重なりを作る
-    if shrink_amount > 0:
-        watermark_mask = alpha_array > 0
-        eroded_mask = binary_erosion(watermark_mask, iterations=shrink_amount)
-        overlap_mask = watermark_mask & ~eroded_mask
-    else:
-        overlap_mask = np.zeros_like(alpha_array, dtype=bool)
-    
-    # 拡張マスクを作成（アウトラインの形状）
-    dilated_mask = binary_dilation(alpha_array > 0, iterations=border_width)
-    outline_mask = dilated_mask & ~(alpha_array > 0)
-    
-    # 重なり部分を考慮
-    outline_mask = outline_mask | overlap_mask
-    
-    # アウトラインを描画
-    draw = ImageDraw.Draw(outline_image)
-    outline_rgba = outline_color + (int(255 * opacity),)
-    
-    for y in range(outline_mask.shape[0]):
-        for x in range(outline_mask.shape[1]):
-            if outline_mask[y, x]:
-                draw.point((x, y), fill=outline_rgba)
-    
-    # 輪郭をぼかす処理を追加（軽めのぼかし）
-    outline_image = outline_image.filter(ImageFilter.GaussianBlur(radius=0.7))
-    
-    # アウトラインをウォーターマークの下に配置する順序で合成
-    result = Image.new("RGBA", watermark.size, (0, 0, 0, 0))
-    result.paste(outline_image, (0, 0), outline_image.split()[-1])
-    result.paste(watermark, (0, 0), watermark.split()[-1])
-    
-    return result
+    except Exception as e:
+        debug_log(f"ERROR: Error adding outline: {str(e)}")
+        debug_log(f"TRACE: {traceback.format_exc()}")
+        return watermark  # エラー時は元のウォーターマークを返す
 
-def apply_watermark(base_image, watermark_path, opacity=0.6, invert=False, enable_outline=True, size_factor=0.5, outline_color=None):
+def apply_watermark(baseImage, watermarkPath, opacity=0.6, invert=False, enableOutline=True, sizeFactor=0.5, outlineColor=None):
     """
-    ベース画像にウォーターマークを適用する関数
+    画像にウォーターマークを適用する関数
     
     Parameters:
-    - base_image: ベースとなる画像（PIL.Image）
-    - watermark_path: ウォーターマーク画像のパス
+    - baseImage: ベース画像（PIL.Image）
+    - watermarkPath: ウォーターマーク画像のパス
     - opacity: ウォーターマークの不透明度（0.0〜1.0）
-    - invert: ウォーターマークを白黒反転するかどうか
-    - enable_outline: アウトラインを有効にするかどうか
-    - size_factor: ウォーターマークサイズの係数（0.1〜1.0）、元画像の短辺に対する割合
-    - outline_color: アウトラインの色（RGBタプル）、Noneの場合は自動検出
+    - invert: ウォーターマークを反転するかどうか
+    - enableOutline: アウトラインを有効にするかどうか
+    - sizeFactor: ウォーターマークのサイズ係数（0.0〜1.0）
+    - outlineColor: アウトラインの色（RGBリスト）
     
     Returns:
-    - 処理された画像（PIL.Image）
+    - ウォーターマークが適用された画像（PIL.Image）
     """
-    logging.debug(f"Starting apply_watermark with opacity: {opacity}, invert: {invert}, enable_outline: {enable_outline}, size_factor: {size_factor}")
+    debug_log(f"===== WATERMARK PROCESSING START =====")
+    debug_log(f"apply_watermark called with following parameters:")
+    debug_log(f"- watermarkPath: {watermarkPath}")
+    debug_log(f"- opacity: {opacity}")
+    debug_log(f"- invert: {invert}")
+    debug_log(f"- enableOutline: {enableOutline}")
+    debug_log(f"- sizeFactor: {sizeFactor}")
+    debug_log(f"- outlineColor: {outlineColor} (type: {type(outlineColor)})")
+    debug_log(f"- baseImage: {baseImage.size if baseImage else 'None'}")
+    
+    # watermarkPathのバリデーション
+    if watermarkPath is None or not isinstance(watermarkPath, str) or len(watermarkPath.strip()) == 0:
+        debug_log(f"ERROR: Invalid watermark path: {watermarkPath}")
+        return baseImage
 
+    # パスの正規化
+    watermarkPath = os.path.normpath(watermarkPath)
+    debug_log(f"Normalized path: {watermarkPath}")
+    
+    # ファイルの存在確認
+    if not os.path.exists(watermarkPath):
+        debug_log(f"ERROR: Watermark file not found: {watermarkPath}")
+        return baseImage
+        
+    # ファイルの読み取り権限確認
+    if not os.access(watermarkPath, os.R_OK):
+        debug_log(f"ERROR: Watermark file is not readable: {watermarkPath}")
+        return baseImage      # ファイルサイズ確認
     try:
-        with Image.open(watermark_path) as watermark:
-            if watermark.mode != 'RGBA':
-                watermark = watermark.convert('RGBA')
-
-            if invert:
-                r, g, b, a = watermark.split()
-                rgb_image = Image.merge('RGB', (r, g, b))
-                inverted_rgb = ImageOps.invert(rgb_image)
-                r, g, b = inverted_rgb.split()
-                watermark = Image.merge('RGBA', (r, g, b, a))
-
-            # ウォーターマークの透明度を適用
-            if 0.0 <= opacity <= 1.0:
-                alpha = watermark.split()[-1]
-                alpha = alpha.point(lambda p: int(p * opacity))
-                watermark.putalpha(alpha)
-
-            base_width, base_height = base_image.size
-            short_edge = min(base_width, base_height)
+        file_size = os.path.getsize(watermarkPath)
+        if file_size == 0:
+            debug_log(f"ERROR: Watermark file is empty (0 bytes): {watermarkPath}")
+            return baseImage
+        debug_log(f"File size: {file_size} bytes")
+    except Exception as e:
+        debug_log(f"ERROR: Failed to get file size: {str(e)}")
+        return baseImage
+    
+    try:
+        debug_log(f"Opening watermark file: {watermarkPath}")
+        
+        try:
+            watermark = Image.open(watermarkPath)
+            debug_log(f"Watermark loaded with size: {watermark.size}, mode: {watermark.mode}")
+        except Exception as img_error:
+            debug_log(f"ERROR: Failed to open watermark image: {str(img_error)}")
+            debug_log(f"TRACE: {traceback.format_exc()}")
+            return baseImage
             
-            # ウォーターマークのアスペクト比を維持してリサイズ
-            wm_width, wm_height = watermark.size
-            aspect_ratio = wm_width / wm_height
+        if watermark.mode != 'RGBA':
+            watermark = watermark.convert('RGBA')
+            debug_log(f"Converted watermark to RGBA mode")
 
-            # sizeFactorは0.1から1.0の範囲で制限
-            size_factor = max(0.1, min(1.0, size_factor))
-            
-            if base_width / base_height > aspect_ratio:
-                new_wm_height = int(short_edge * size_factor)
-                new_wm_width = int(new_wm_height * aspect_ratio)
-            else:
-                new_wm_width = int(short_edge * size_factor)
-                new_wm_height = int(new_wm_width / aspect_ratio)
+        if invert:
+            debug_log(f"Inverting watermark colors")
+            r, g, b, a = watermark.split()
+            rgb_image = Image.merge('RGB', (r, g, b))
+            inverted_rgb = ImageOps.invert(rgb_image)
+            r, g, b = inverted_rgb.split()
+            watermark = Image.merge('RGBA', (r, g, b, a))
+            debug_log(f"Watermark colors inverted")        # ウォーターマークの透明度を適用
+        if 0.0 <= opacity <= 1.0:
+            debug_log(f"Applying opacity {opacity} to watermark")
+            # フロントエンドから送られた不透明度はそのまま使用する
+            # ユーザーが指定した値を絶対に正しいものとして尊重する
+            alpha = watermark.split()[-1]
+            alpha = alpha.point(lambda p: int(p * opacity))
+            watermark.putalpha(alpha)
+            debug_log(f"Opacity applied to watermark exactly as specified: {opacity}")
 
-            watermark = watermark.resize((new_wm_width, new_wm_height), Image.LANCZOS)
-            logging.debug(f"Resized watermark to: {new_wm_width}x{new_wm_height}")
+        base_width, base_height = baseImage.size
+        short_edge = min(base_width, base_height)
+        
+        # ウォーターマークのアスペクト比を維持してリサイズ
+        wm_width, wm_height = watermark.size
+        aspect_ratio = wm_width / wm_height        # sizeFactorは0.1から1.0の範囲で制限
+        sizeFactor = max(0.1, min(1.0, sizeFactor))
+        debug_log(f"Using size factor: {sizeFactor}, base image size: {base_width}x{base_height}, short edge: {short_edge}")
+        
+        if base_width / base_height > aspect_ratio:
+            new_wm_height = int(short_edge * sizeFactor)
+            new_wm_width = int(new_wm_height * aspect_ratio)
+        else:
+            new_wm_width = int(short_edge * sizeFactor)
+            new_wm_height = int(new_wm_width / aspect_ratio)
 
-            # アウトラインの追加
-            if enable_outline:
-                # 画像サイズに応じた固定のアウトライン幅を設定
+        watermark = watermark.resize((new_wm_width, new_wm_height), Image.LANCZOS)
+        debug_log(f"Resized watermark to: {new_wm_width}x{new_wm_height}")
+        
+        # アウトラインの追加
+        if enableOutline and outlineColor is not None:
+            try:
+                debug_log(f"Processing outline with color: {outlineColor}, type: {type(outlineColor)}")
+                
+                # outlineColorの型チェックと変換
+                if isinstance(outlineColor, list) and len(outlineColor) >= 3:
+                    # リストからタプルに変換
+                    outline_color_tuple = tuple(int(c) for c in outlineColor[:3])
+                elif isinstance(outlineColor, str):
+                    # 文字列からタプルに変換（カンマ区切りやRGB文字列など）
+                    try:
+                        # カンマ区切り文字列を処理
+                        if ',' in outlineColor:
+                            outline_color_tuple = tuple(int(c.strip()) for c in outlineColor.split(',')[:3])
+                        # 16進数表記を処理
+                        elif outlineColor.startswith('#'):
+                            color = outlineColor.lstrip('#')
+                            outline_color_tuple = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+                        else:
+                            # デフォルト値を設定
+                            debug_log(f"ERROR: Invalid color format: {outlineColor}, using default (255,255,255)")
+                            outline_color_tuple = (255, 255, 255)
+                    except Exception as color_error:
+                        debug_log(f"ERROR: Failed to parse color string: {str(color_error)}")
+                        outline_color_tuple = (255, 255, 255)
+                else:
+                    # デフォルト値を設定
+                    debug_log(f"ERROR: Invalid outline color format, using default: {outlineColor}")
+                    outline_color_tuple = (255, 255, 255)
+                    debug_log(f"Converted outline color to tuple: {outline_color_tuple}")
+                
+                # 画像サイズに合わせたborder_widthを設定
                 if short_edge <= 512:
-                    border_width = 5  # Small - 5px
+                    border_width = 5   # 小さい画像
                 elif short_edge <= 1024:
-                    border_width = 10  # Medium - 10px
+                    border_width = 10  # 中くらいの画像
                 else:
-                    border_width = 15  # Default (1024x1024以上) - 15px
+                    border_width = 15  # 大きい画像
+                    
+                debug_log(f"Using border width: {border_width}px for image with short edge {short_edge}px")
+                # アウトラインにもフロントエンドで指定された透明度をそのまま適用
+                # ユーザーが指定した値を絶対に正しいものとして尊重する
+                watermark = add_simple_outline(
+                    watermark,
+                    outline_color_tuple,
+                    borderWidth=border_width,
+                    opacity=opacity,
+                    overlapFactor=0.2
+                )
                 
-                logging.debug(f"Using fixed border width: {border_width}px")
-                
-                # 指定された色があればそれを使用、なければ周囲から抽出
-                if outline_color:
-                    logging.debug(f"Using specified outline color: {outline_color}")
-                    # シンプルな単色アウトラインを適用
-                    watermark = add_simple_outline(
-                        watermark, 
-                        outline_color, 
-                        border_width=border_width, 
-                        opacity=opacity,
-                        overlap_factor=0.2
-                    )
-                else:
-                    # 周囲の色を抽出
-                    colors = get_colors_around_mask(base_image, watermark, n_colors=1, border_width=border_width)
-                    logging.debug(f"Using extracted outline color: {colors[0]}")
-                    # シンプルな単色アウトラインを適用
-                    watermark = add_simple_outline(
-                        watermark, 
-                        colors[0], 
-                        border_width=border_width, 
-                        opacity=opacity,
-                        overlap_factor=0.2
-                    )
-                
-                logging.debug("Added outline to watermark.")
+                debug_log(f"Added outline to watermark with color {outline_color_tuple}")
+            except Exception as outline_error:
+                debug_log(f"ERROR: Error applying outline: {str(outline_error)}")
+                debug_log(f"TRACE: {traceback.format_exc()}")
+        else:
+            debug_log(f"Skipping outline: enableOutline={enableOutline}, outlineColor={outlineColor}")
 
-            # 全体的なぼかし処理を追加して自然に見せる（軽度）
-            watermark = watermark.filter(ImageFilter.GaussianBlur(radius=0.5))
-            logging.debug("Applied slight blur to watermark edges")
+        # 全体的なぼかし処理を追加して自然に見せる（軽度）
+        watermark = watermark.filter(ImageFilter.GaussianBlur(radius=0.5))
+        debug_log(f"Applied slight blur to watermark edges")
+        # ウォーターマークを中央に配置
+        paste_x = (base_width - new_wm_width) // 2
+        paste_y = (base_height - new_wm_height) // 2
+        
+        # ウォーターマーク画像をベース画像に合成
+        debug_log(f"Pasting watermark at position: ({paste_x}, {paste_y})")
+        composite_with_watermark = Image.new('RGBA', (base_width, base_height), (0, 0, 0, 0))
+        composite_with_watermark.paste(watermark, (paste_x, paste_y), watermark.split()[-1])
 
-            # ウォーターマークを中央に配置
-            paste_x = (base_width - new_wm_width) // 2
-            paste_y = (base_height - new_wm_height) // 2
+        # 元画像をRGBAモードに変換して保持
+        base_image_rgba = baseImage.convert('RGBA')
+        debug_log(f"Base image converted to RGBA mode")
 
-            # ウォーターマーク画像をベース画像に合成
-            composite_with_watermark = Image.new('RGBA', (base_width, base_height), (0, 0, 0, 0))
-            composite_with_watermark.paste(watermark, (paste_x, paste_y), watermark.split()[-1])
+        # ウォーターマーク画像をベース画像に合成
+        final_composite = Image.alpha_composite(base_image_rgba, composite_with_watermark)
+        debug_log(f"Final composite with watermark completed")
+        debug_log(f"===== WATERMARK PROCESSING FINISHED =====")
 
-            # 元画像をRGBAモードに変換して保持
-            base_image_rgba = base_image.convert('RGBA')
-
-            # ウォーターマーク画像をベース画像に合成
-            final_composite = Image.alpha_composite(base_image_rgba, composite_with_watermark)
-
-            logging.debug("Final composite with watermark completed.")
-
-            return final_composite
+        return final_composite
 
     except Exception as e:
-        logging.error(f"Watermark application error: {str(e)}")
-        return base_image
+        debug_log(f"ERROR: Watermark application error: {str(e)}")
+        debug_log(f"TRACE: {traceback.format_exc()}")
+        return baseImage
