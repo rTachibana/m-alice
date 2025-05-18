@@ -408,12 +408,38 @@ input:checked + .slider:before {
 }
 
 .settings-section {
-    margin-bottom: 20px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    background: #fafbfc;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    overflow: hidden;
 }
 
 .settings-section h4 {
-    margin-bottom: 12px;
-    color: #444;
+    margin: 0;
+    padding: 12px 18px;
+    background: #f0f2f5;
+    cursor: pointer;
+    font-size: 16px;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.settings-section h4:hover {
+    background: #e6e8eb;
+}
+
+.settings-section .section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1);
+    background: #fff;
+    padding: 0 18px;
+}
+
+.settings-section.open .section-content {
+    max-height: 1000px;
+    padding: 12px 18px;
 }
 
 .logo-position-options {
@@ -566,11 +592,17 @@ input:checked + .slider:before {
     position: relative;
 }
 
-.color-picker-label #colorCodeInput {
+#colorCodeInput {
+    width: 6em;
+    height: 24px;
+    margin-left: 0;
     padding-left: 18px;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
-.color-picker-label #colorCodeInput::before {
+#colorCodeInput::before {
     content: '#';
     position: absolute;
     left: calc(100% - 70px + 4px); /* inputの左端に合わせる */
@@ -641,15 +673,11 @@ input:checked + .slider:before {
     font-size: 16px;
     margin-right: 2px;
 }
-#colorCodeInput {
-    width: 6em;
-    height: 24px;
-    margin-left: 0;
-    font-size: 14px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
 .color-number {
     width: 50px;
     margin-left: 8px;
+}
+
+.radio-list label {
+    display: block;
 }

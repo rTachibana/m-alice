@@ -913,6 +913,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 初期カラープレビューの更新
   updateColorPreview();
+
+  // 設定モーダルのアコーディオン処理
+  document.querySelectorAll('.settings-section').forEach(section => {
+    const h4 = section.querySelector('h4');
+    if (h4) {
+      h4.addEventListener('click', () => {
+        section.classList.toggle('open');
+      });
+    }
+  });
 });
 
 // Add metadata display functionality
