@@ -47,6 +47,26 @@ const logSystemInfo = () => {
   console.log('Input Dir:', inputDir);
   console.log('Output Dir:', outputDir);
 };
+
+// ユーザー設定から保存先パスを取得する関数
+const getUserDirs = () => {
+  try {
+    const fs = require('fs');
+    const userSettingsPath = path.join(appRoot, 'user_data', 'user-settings.json');
+    if (fs.existsSync(userSettingsPath)) {
+      const settings = JSON.parse(fs.readFileSync(userSettingsPath, 'utf8'));
+      return {
+        inputDir: settings.inputDir ? path.resolve(appRoot, settings.inputDir) : inputDir,
+        outputDir: settings.outputDir ? path.resolve(appRoot, settings.outputDir) : outputDir,
+        settingsDir: settings.settingsDir ? path.resolve(appRoot, settings.settingsDir) : path.join(appRoot, 'user_data')
+      };
+    }
+  } catch (e) {
+    console.error('ユーザー設定から保存先パス取得失敗:', e);
+  }
+  return { inputDir, outputDir, settingsDir: path.join(appRoot, 'user_data') };
+};
+
 module.exports = {
   store,
   isWindows,
@@ -58,5 +78,6 @@ module.exports = {
   inputDir,
   outputDir,
   ensureDirectoriesExist,
-  logSystemInfo
+  logSystemInfo,
+  getUserDirs
 };

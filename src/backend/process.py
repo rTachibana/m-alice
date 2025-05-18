@@ -48,16 +48,16 @@ def process_image(input_path, output_path, options=None):
         input_ext = os.path.splitext(input_path)[1].lower()
         if input_ext not in ['.png', '.jpg', '.jpeg', '.webp']:
             raise ValueError(f"Unsupported file format: {input_ext}. Only PNG, JPG, and WEBP are supported.")
-        
         # 画像を開く
         with Image.open(input_path) as img:
             processed_img = img.copy()
-              # 1. リサイズ処理
+
+            # 1. リサイズ処理
             if options and options.get('resize'):
                 resize_option = options.get('resize')
                 processed_img = resize_image(processed_img, resize_option)
-            
-            # 2. DCTノイズを適用
+
+            # 2. 各ノイズの適用（DCT→ランダム→マスタード）
             if options and 'noiseLevel' in options and 'dct' in options.get('noiseTypes', []):
                 noise_level = options.get('noiseLevel', 0.5)
                 processed_img = apply_single_noise(
@@ -65,13 +65,9 @@ def process_image(input_path, output_path, options=None):
                     noise_type='dct',
                     noise_level=noise_level
                 )
-            
-            # 3-6. ランダムノイズを適用
             random_noise_types = []
             if options and 'noiseLevel' in options:
                 noise_types = options.get('noiseTypes', [])
-                
-                # ランダム化するノイズタイプを収集
                 if 'gaussian' in noise_types:
                     random_noise_types.append('gaussian')
                 if 'speckle' in noise_types:
@@ -80,10 +76,7 @@ def process_image(input_path, output_path, options=None):
                     random_noise_types.append('shot')
                 if 'himalayan' in noise_types:
                     random_noise_types.append('himalayan')
-                  # ノイズタイプをシャッフル
                 random.shuffle(random_noise_types)
-                
-                # シャッフルしたノイズを順に適用
                 for noise_type in random_noise_types:
                     noise_level = options.get('noiseLevel', 0.5)
                     processed_img = apply_single_noise(
@@ -91,15 +84,24 @@ def process_image(input_path, output_path, options=None):
                         noise_type=noise_type,
                         noise_level=noise_level
                     )
-            
-            # 7. Mustardノイズを適用
             if options and 'noiseLevel' in options and 'mustard' in options.get('noiseTypes', []):
                 noise_level = options.get('noiseLevel', 0.5)
                 processed_img = apply_single_noise(
                     processed_img,
                     noise_type='mustard',
                     noise_level=noise_level
-                )            # 8. ウォーターマークを適用            if options.get('applyWatermark'):
+                )
+
+            # 3. ウォーターマークの付与
+            if options and options.get('applyWatermark'):
+                watermarkPath = options.get('watermarkPath')
+                watermarkOpacity = options.get('watermarkOpacity', 0.6)
+                watermarkOpacityMin = options.get('watermarkOpacityMin', 0.05)
+                invertWatermark = options.get('invertWatermark', False)
+                enableOutline = options.get('enableOutline', True)
+                watermarkSize = options.get('watermarkSize', 0.5)
+                outlineColor = options.get('outlineColor', [255, 255, 255])
+                watermarkOpacity = max(watermarkOpacityMin, watermarkOpacity)
                 # ウォーターマークのパラメータを取得（キャメルケースに統一）
                 watermarkPath = options.get('watermarkPath')
                 watermarkOpacity = options.get('watermarkOpacity', 0.6)
@@ -210,18 +212,19 @@ def process_image(input_path, output_path, options=None):
                     print(f"Watermark path invalid or file not found: {watermarkPath}")
                 
                 print(f"===== WATERMARK PROCESSING FINISHED =====\n")
-            
-            # 9. ロゴを配置
-            processed_img = apply_logo_if_needed(processed_img, options)
-            
-            # 10. 最終仕上げのガウシアンノイズを適用
+
+            # 4. 仕上げノイズ処理（ガウシアン）
             final_noise_level = 0.2  # Lv.2相当の弱いノイズ
             processed_img = apply_single_noise(
                 processed_img,
                 noise_type='gaussian',
                 noise_level=final_noise_level
             )
-              # 11. メタデータ処理を実行
+
+            # 5. ロゴの追加
+            processed_img = apply_logo_if_needed(processed_img, options)
+
+            # 6. メタデータ改竄処理（現在はオミット）
             # if options and (options.get('removeMetadata', True) or 
             #             options.get('addFakeMetadata', True) or 
             #             options.get('addNoAIFlag', True)):
@@ -234,25 +237,18 @@ def process_image(input_path, output_path, options=None):
             #     }
             #     
             #     process_metadata(output_path, output_path, metadata_options)
-            
+
             # 出力形式の設定を処理
             output_format = options.get('outputFormat', 'png') if options else 'png'
-            
-            # 出力パスの拡張子を取得
             output_ext = os.path.splitext(output_path)[1].lower()
-            
-            # 設定された出力形式に基づいて出力ファイル名を調整
             if output_format == 'webp' and output_ext != '.webp':
                 output_path = os.path.splitext(output_path)[0] + '.webp'
             elif output_format == 'png' and output_ext != '.png':
                 output_path = os.path.splitext(output_path)[0] + '.png'
-            
-            # 保存（出力形式に応じたオプション設定）
             if output_format == 'webp':
                 processed_img.save(output_path, format='WEBP', lossless=True, quality=100)
-            else:  # pngがデフォルト
+            else:
                 processed_img.save(output_path, format='PNG')
-        
         print("SUCCESS")
         return True
     except Exception as e:

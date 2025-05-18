@@ -292,6 +292,21 @@
                             </div>
                         </div>
                     </div>
+                    <div class="settings-section">
+                        <h4>保存先パス設定</h4>
+                        <div class="section-content">
+                            <label>出力画像保存先:
+                                <input type="text" id="outputDirInput" style="width:80%" placeholder="例: user_data/output">
+                            </label><br>
+                            <label>入力画像保存先:
+                                <input type="text" id="inputDirInput" style="width:80%" placeholder="例: user_data/input">
+                            </label><br>
+                            <label>設定ファイル保存先:
+                                <input type="text" id="settingsDirInput" style="width:80%" placeholder="例: user_data">
+                            </label>
+                            <p style="color:gray;">※パスは相対パスまたは絶対パスで指定できます。変更後は再起動が必要な場合があります。</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button id="settingsSaveBtn" class="modal-btn modal-ok-btn">Save</button>

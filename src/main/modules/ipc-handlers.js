@@ -82,7 +82,8 @@ function setupIPCHandlers() {
       console.log('Received dropped file data:', fileInfo.fileName);
 
       // 一時ファイルの保存先を設定（拡張子をオリジナルから取得）
-      const tempInputPath = path.join(config.inputDir, 'temp_input' + path.extname(fileInfo.fileName));
+      const userDirs = config.getUserDirs();
+      const tempInputPath = path.join(userDirs.inputDir, 'temp_input' + path.extname(fileInfo.fileName));
 
       // Uint8Array形式のデータをBufferに変換
       const buffer = Buffer.from(fileInfo.fileData);
@@ -116,7 +117,8 @@ function setupIPCHandlers() {
 
       // オリジナルのファイル名を使用（指定がない場合はパスからファイル名を取得）
       const originalFileName = options.originalFileName || path.basename(inputFilePath);
-      const tempInputPath = path.join(config.inputDir, 'temp_input' + path.extname(inputFilePath));
+      const userDirs = config.getUserDirs();
+      const tempInputPath = path.join(userDirs.inputDir, 'temp_input' + path.extname(inputFilePath));
       console.log('Input file path:', inputFilePath);
       console.log('Original file name:', originalFileName);
       console.log('Temp input path:', tempInputPath);
@@ -131,7 +133,7 @@ function setupIPCHandlers() {
       // 出力ファイル名の生成（元のファイル名の拡張子を除去し、設定された形式の拡張子を追加）
       const filenameWithoutExt = path.parse(originalFileName).name;
       const outputFileName = `maliced-${filenameWithoutExt}.${outputFormat}`;
-      const outputPath = path.join(config.outputDir, outputFileName);
+      const outputPath = path.join(userDirs.outputDir, outputFileName);
       console.log('Output path:', outputPath);
 
       // ウォーターマークパス
@@ -254,7 +256,9 @@ function setupIPCHandlers() {
   // 設定関連のハンドラー
   ipcMain.handle('save-settings', async (event, settings) => {
     try {
-      const settingsPath = path.join(config.appRoot, 'user_data', 'user-settings.json');
+      // ユーザー設定の保存先パスを取得
+      const userDirs = config.getUserDirs();
+      const settingsPath = path.join(userDirs.settingsDir, 'user-settings.json');
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
       console.log('Settings saved to:', settingsPath);
       return {
@@ -270,7 +274,8 @@ function setupIPCHandlers() {
   });
   ipcMain.handle('load-settings', async () => {
     try {
-      const settingsPath = path.join(config.appRoot, 'user_data', 'user-settings.json');
+      const userDirs = config.getUserDirs();
+      const settingsPath = path.join(userDirs.settingsDir, 'user-settings.json');
       if (!fs.existsSync(settingsPath)) {
         // デフォルト設定を返す
         const defaultSettings = {

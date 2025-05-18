@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const defaultName = document.getElementById('defaultName');
   const outputName = document.getElementById('outputName');
   const processBtn = document.getElementById('processBtn');
+  const pythonSetupBtn = document.getElementById('pythonSetup');
   const watermarkToggle = document.getElementById('watermarkToggle');
   const watermarkSelect = document.getElementById('watermarkSelect');
   const invertWatermarkToggle = document.getElementById('invertWatermarkToggle');
@@ -58,10 +59,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 直近の処理済み画像のパスを保持する変数
   let lastProcessedImagePath = null;
-
   // モーダルを閉じる関数
   function closeModal() {
     modalOverlay.classList.remove('show');
+  }
+
+  // Pythonセットアップボタンのイベントリスナー
+  if (pythonSetupBtn) {
+    pythonSetupBtn.addEventListener('click', async function() {
+      // pythonCheck.jsのモジュールをインポート
+      const { openPythonCheckModal } = require('./js/services/pythonCheck');
+      // モーダルを開く
+      openPythonCheckModal(pythonSetupBtn);
+    });
   }
 
   // 詳細表示ボタンのイベントリスナー
@@ -641,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
           outlineColorControls.style.opacity = '0.5';
           outlineColorControls.style.pointerEvents = 'none';
         }
-        console.log('Settings loaded:', userSettings);
+        // console.log('Settings loaded:', userSettings);
       } else {
         console.warn('Failed to load settings, using defaults');
         userSettings = result.settings; // エラー時もデフォルト設定は返される

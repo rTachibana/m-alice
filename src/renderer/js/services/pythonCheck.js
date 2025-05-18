@@ -4,7 +4,7 @@ const pythonSetupService = require('./pythonSetup');
 
 async function openPythonCheckModal(pythonSetupBtn) {
   const modalTitle = 'Pythonセットアップ';
-  const modalMsg = 'Python環境の状態をチェック、または強制的に再インストールできます。 ※ インターネット接続が必要です';
+  const modalMsg = 'Python環境の状態をチェック、または強制的に再インストールできます。※ インターネット接続が必要です';
   showModal(modalTitle, modalMsg);
   const footer = document.querySelector('.modal-footer');
   footer.innerHTML = '';

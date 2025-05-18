@@ -101,6 +101,14 @@ const openSettingsModal = async () => {
     noAIFlagChk.checked = userSettings.addNoAIFlag;
   }
 
+  // 保存先パスの入力欄に現在の設定値を反映
+  const outputDirInput = document.getElementById('outputDirInput');
+  if (outputDirInput && userSettings.outputDir) outputDirInput.value = userSettings.outputDir;
+  const inputDirInput = document.getElementById('inputDirInput');
+  if (inputDirInput && userSettings.inputDir) inputDirInput.value = userSettings.inputDir;
+  const settingsDirInput = document.getElementById('settingsDirInput');
+  if (settingsDirInput && userSettings.settingsDir) settingsDirInput.value = userSettings.settingsDir;
+
   // モーダルを表示
   if (settingsModalOverlay) settingsModalOverlay.classList.add('show');
 };
@@ -117,6 +125,14 @@ const closeSettingsModal = () => {
  */
 const saveSettings = async () => {
   try {
+    // 保存先パスの値も取得
+    const outputDirInput = document.getElementById('outputDirInput');
+    const inputDirInput = document.getElementById('inputDirInput');
+    const settingsDirInput = document.getElementById('settingsDirInput');
+    const outputDir = outputDirInput ? outputDirInput.value : '';
+    const inputDir = inputDirInput ? inputDirInput.value : '';
+    const settingsDir = settingsDirInput ? settingsDirInput.value : '';
+
     // フォームから設定値を取得し、まとめて渡す
     const formElements = {
       logoRadioChecked: document.querySelector('input[name="logoPosition"]:checked'),
@@ -135,7 +151,11 @@ const saveSettings = async () => {
       greenSlider: document.getElementById('greenSlider'),
       blueSlider: document.getElementById('blueSlider'),
       resizeRadioChecked: document.querySelector('input[name="resize"]:checked'),
-      outputFormatRadioChecked: document.querySelector('input[name="outputFormat"]:checked')
+      outputFormatRadioChecked: document.querySelector('input[name="outputFormat"]:checked'),
+      // 保存先パスの値も取得
+      outputDir,
+      inputDir,
+      settingsDir
     };
     const result = await settingsService.saveSettingsFromForm(formElements);
     if (result.success) {

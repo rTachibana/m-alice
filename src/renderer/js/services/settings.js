@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS = {
   // 画像処理設定
   noiseLevel: 3,
   noiseTypes: ['gaussian', 'dct'],
-  // メタデータ設定（新仕様）
+  // メタデータ設定
   metadataMode: 'not_processing', // 'not_processing', 'remove', 'fake'
   fakeMetadataType: 'random',
   addNoAIFlag: false,
@@ -217,7 +217,11 @@ const saveSettingsFromForm = async formElements => {
       metadataMode: metadataMode,
       fakeMetadataType: fakeMetadataType,
       addNoAIFlag: addNoAIFlag,
-      outputFormat: formElements.outputFormatRadioChecked ? formElements.outputFormatRadioChecked.value : 'png'
+      outputFormat: formElements.outputFormatRadioChecked ? formElements.outputFormatRadioChecked.value : 'png',
+      // 保存先パスも追加
+      outputDir: formElements.outputDir || '',
+      inputDir: formElements.inputDir || '',
+      settingsDir: formElements.settingsDir || ''
     };
     return await saveSettings(settings);
   } catch (error) {

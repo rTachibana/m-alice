@@ -30,7 +30,7 @@ def resize_image(image, resize_option):
     
     # 既に目標サイズ以下の場合はリサイズしない
     if total_pixels <= target_pixels[resize_option]:
-        print(f"画像サイズは既に十分小さいため、リサイズをスキップします: {width}x{height} ({current_megapixels:.2f}MP)")
+        print(f"Image size is already small enough, so skip resizing: {width}x{height} ({current_megapixels:.2f}MP)")
         return image
 
     # リサイズ比率を計算
@@ -38,7 +38,7 @@ def resize_image(image, resize_option):
     new_width = int(width * ratio)
     new_height = int(height * ratio)
 
-    print(f"リサイズ: {width}x{height} ({current_megapixels:.2f}MP) → {new_width}x{new_height} ({target_pixels[resize_option]/1000000:.2f}MP)")
+    print(f"Resize: {width}x{height} ({current_megapixels:.2f}MP) → {new_width}x{new_height} ({target_pixels[resize_option]/1000000:.2f}MP)")
     
     # リサイズして返す
     return image.resize((new_width, new_height), Image.LANCZOS)

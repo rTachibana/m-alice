@@ -20,7 +20,7 @@ def get_metadata(image_path):
     try:
         # 画像ファイルが存在するか確認
         if not os.path.exists(image_path):
-            return {"error": "ファイルが存在しません"}
+            return {"error": "File does not exist"}
         
         # 画像ファイルを開く
         img = Image.open(image_path)
@@ -139,7 +139,7 @@ def find_ai_prohibition_markers(exif_data):
 if __name__ == "__main__":
     # コマンドライン引数の解析
     if len(sys.argv) < 2:
-        print(json.dumps({"error": "引数が不足しています"}))
+        print(json.dumps({"error": "Missing arguments"}))
         sys.exit(1)
 
     image_path = sys.argv[1]
