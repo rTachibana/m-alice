@@ -278,10 +278,10 @@ input:checked + .slider:before {
 .modal-container {
     background-color: white;
     border-radius: 8px;
-    width: 400px;
+    width: 70%;
+    max-width: 600px;
     max-height: 95vh;
     overflow-y: auto;
-    max-width: 90%;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     animation: modalFadeIn 0.3s;
 }
@@ -401,8 +401,10 @@ input:checked + .slider:before {
 
 /* 設定モーダル用のスタイル */
 .settings-modal-container {
-    width: 500px;
-    max-width: 90%;
+    width: 70%;
+    max-width: 600px;
+    max-height: 95vh;
+    overflow-y: auto;
 }
 
 .settings-section {
@@ -561,6 +563,22 @@ input:checked + .slider:before {
     display: flex;
     align-items: center;
     margin-bottom: 8px;
+    position: relative;
+}
+
+.color-picker-label #colorCodeInput {
+    padding-left: 18px;
+}
+
+.color-picker-label #colorCodeInput::before {
+    content: '#';
+    position: absolute;
+    left: calc(100% - 70px + 4px); /* inputの左端に合わせる */
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+    font-size: 16px;
+    pointer-events: none;
 }
 
 .color-preview {
@@ -608,4 +626,30 @@ input:checked + .slider:before {
 
 .auto-color-btn:active {
     background-color: #c5c5c5;
+}
+
+.color-code-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
+}
+.color-code-hash {
+    position: absolute;
+    left: 0.5em;
+    color: #333;
+    font-size: 16px;
+    margin-right: 2px;
+}
+#colorCodeInput {
+    width: 6em;
+    height: 24px;
+    margin-left: 0;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.color-number {
+    width: 50px;
+    margin-left: 8px;
 }

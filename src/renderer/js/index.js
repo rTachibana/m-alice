@@ -136,10 +136,12 @@ document.addEventListener('DOMContentLoaded', () => {
     watermarkSelect.disabled = !isEnabled;
     invertWatermarkToggle.disabled = !isEnabled;
     enableOutlineToggle.disabled = !isEnabled;
-
-    // アウトライン色コントロールも連動
-    outlineColorControls.style.opacity = isEnabled ? '1' : '0.5';
-    outlineColorControls.style.pointerEvents = isEnabled ? 'auto' : 'none';
+    // .watermark-select, .watermark-invert-toggle, .watermark-outline-toggle, .watermark-controls-groupを一括でグレーアウト/活性化
+    document.querySelectorAll('.watermark-select, .watermark-invert-toggle, .watermark-outline-toggle, .watermark-controls-group').forEach(el => {
+      el.style.opacity = isEnabled ? '1' : '0.5';
+      el.style.pointerEvents = isEnabled ? 'auto' : 'none';
+    });
+    // input自体のdisabledも維持
     watermarkSize.disabled = !isEnabled;
     watermarkOpacity.disabled = !isEnabled;
   });
@@ -256,10 +258,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // アウトラインカラーを追加
         outlineColor: watermarkToggle.checked ? [parseInt(redSlider.value), parseInt(greenSlider.value), parseInt(blueSlider.value)] : null,
         // メタデータオプションを追加
-        removeMetadata: userSettings ? userSettings.removeMetadata : true,
-        addFakeMetadata: userSettings ? userSettings.addFakeMetadata : true,
-        fakeMetadataType: userSettings ? userSettings.fakeMetadataType : "random",
-        addNoAIFlag: userSettings ? userSettings.addNoAIFlag : true,
+        // removeMetadata: userSettings ? userSettings.removeMetadata : true,
+        // addFakeMetadata: userSettings ? userSettings.addFakeMetadata : true,
+        // fakeMetadataType: userSettings ? userSettings.fakeMetadataType : "random",
+        // addNoAIFlag: userSettings ? userSettings.addNoAIFlag : true,
         // マスタードプリセットフラグを追加
         mustardPreset: isMustardPresetActive
       };
@@ -282,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastProcessedImagePath = result.outputPath;
 
         // メタデータ表示ボタンを有効化
-        document.getElementById('viewMetadataBtn').disabled = false;
+        // document.getElementById('viewMetadataBtn').disabled = false;
         showModal('処理完了', '画像処理が完了しました', true);
       } else {
         throw new Error(result.message || '処理に失敗しました');
@@ -492,10 +494,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const noiseTypes = Array.from(noiseTypesElements).map(el => el.value);
 
       // メタデータ設定を取得
-      const removeMetadata = document.getElementById('removeMetadata').checked;
-      const addFakeMetadata = document.getElementById('addFakeMetadata').checked;
-      const fakeMetadataType = document.getElementById('fakeMetadataType').value;
-      const addNoAIFlag = document.getElementById('addNoAIFlag').checked;
+      // const removeMetadata = document.getElementById('removeMetadata').checked;
+      // const addFakeMetadata = document.getElementById('addFakeMetadata').checked;
+      // const fakeMetadataType = document.getElementById('fakeMetadataType').value;
+      // const addNoAIFlag = document.getElementById('addNoAIFlag').checked;
 
       // 出力形式の設定を取得
       const outputFormat = document.querySelector('input[name="outputFormat"]:checked').value;
@@ -519,10 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
           b: parseInt(blueSlider.value)
         },
         // メタデータ設定を追加
-        removeMetadata: removeMetadata,
-        addFakeMetadata: addFakeMetadata,
-        fakeMetadataType: fakeMetadataType,
-        addNoAIFlag: addNoAIFlag,
+        // removeMetadata: removeMetadata,
+        // addFakeMetadata: addFakeMetadata,
+        // fakeMetadataType: fakeMetadataType,
+        // addNoAIFlag: addNoAIFlag,
         // 出力形式設定を追加
         outputFormat: outputFormat
       };
@@ -581,18 +583,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector(`input[name="resize"][value="${userSettings.resize}"]`).checked = true;
 
         // メタデータ設定の反映
-        if ('removeMetadata' in userSettings) {
-          document.getElementById('removeMetadata').checked = userSettings.removeMetadata;
-        }
-        if ('addFakeMetadata' in userSettings) {
-          document.getElementById('addFakeMetadata').checked = userSettings.addFakeMetadata;
-        }
-        if ('fakeMetadataType' in userSettings) {
-          document.getElementById('fakeMetadataType').value = userSettings.fakeMetadataType;
-        }
-        if ('addNoAIFlag' in userSettings) {
-          document.getElementById('addNoAIFlag').checked = userSettings.addNoAIFlag;
-        }
+        // if ('removeMetadata' in userSettings) {
+        //   document.getElementById('removeMetadata').checked = userSettings.removeMetadata;
+        // }
+        // if ('addFakeMetadata' in userSettings) {
+        //   document.getElementById('addFakeMetadata').checked = userSettings.addFakeMetadata;
+        // }
+        // if ('fakeMetadataType' in userSettings) {
+        //   document.getElementById('fakeMetadataType').value = userSettings.fakeMetadataType;
+        // }
+        // if ('addNoAIFlag' in userSettings) {
+        //   document.getElementById('addNoAIFlag').checked = userSettings.addNoAIFlag;
+        // }
 
         // ノイズタイプの設定を反映
         if (userSettings.noiseTypes && userSettings.noiseTypes.length > 0) {
@@ -675,10 +677,10 @@ document.addEventListener('DOMContentLoaded', () => {
         resize: 'default',
         noiseTypes: ['gaussian', 'dct'],
         // メタデータのデフォルト設定
-        removeMetadata: true,
-        addFakeMetadata: true,
-        fakeMetadataType: 'random',
-        addNoAIFlag: true
+        // removeMetadata: true,
+        // addFakeMetadata: true,
+        // fakeMetadataType: 'random',
+        // addNoAIFlag: true
       };
 
       // スライダー値とテキスト表示を更新
@@ -694,29 +696,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
+
+    // loadWatermarkOptions().then(() => {
+    //   console.log('Settings and watermark options loaded');
+    // }).catch(err => {
+    //   console.error('Error loading watermark options:', err);
+    // });
   }
 
   // ウォーターマークの選択肢を読み込む
   async function loadWatermarkOptions() {
     try {
       watermarkSelect.innerHTML = '';
-      const watermarkDirs = [path.join(__dirname, '../watermark'), path.join(__dirname, '../../user_data/watermark') // Corrected path
-      ];
-      console.log('Loading watermark options from:', watermarkDirs);
-      const watermarkFiles = watermarkDirs.flatMap(dir => {
-        if (fs.existsSync(dir)) {
-          return fs.readdirSync(dir).map(file => path.join(dir, file));
-        }
-        return [];
-      });
-      watermarkFiles.forEach(filePath => {
-        const fileName = path.basename(filePath, path.extname(filePath)).replace(/_/g, ' ');
-        const option = document.createElement('option');
-        option.value = filePath;
-        option.textContent = fileName;
-        watermarkSelect.appendChild(option);
-      });
-      console.log('Watermark options loaded:', watermarkFiles);
+      // get-watermarks経由で一覧取得
+      const result = await ipcRenderer.invoke('get-watermarks');
+      if (result.success && result.watermarks && result.watermarks.length > 0) {
+        result.watermarks.forEach(watermark => {
+          const option = document.createElement('option');
+          option.value = watermark.value; // ファイル名（拡張子なし）
+          option.textContent = watermark.displayName;
+          watermarkSelect.appendChild(option);
+        });
+      } else {
+        // デフォルト値
+        const fallbackOption = document.createElement('option');
+        fallbackOption.value = 'no_ai';
+        fallbackOption.textContent = 'No AI';
+        watermarkSelect.appendChild(fallbackOption);
+      }
     } catch (error) {
       console.error('Error loading watermark options:', error);
     }
@@ -755,13 +762,21 @@ document.addEventListener('DOMContentLoaded', () => {
   settingsCancelBtn.addEventListener('click', closeSettingsModal);
   settingsSaveBtn.addEventListener('click', saveSettings);
 
-  // 起動時に設定とウォーターマークの選択肢を読み込む
+  // 起動時に1回だけ呼ぶ
   loadSettings().then(() => {
     loadWatermarkOptions().then(() => {
+      // 設定ファイルのwatermarkPath（拡張子なしファイル名）を初期選択
+      if (userSettings && userSettings.watermarkPath) {
+        const exists = Array.from(watermarkSelect.options).some(opt => opt.value === userSettings.watermarkPath);
+        if (exists) {
+          watermarkSelect.value = userSettings.watermarkPath;
+        }
+      }
       console.log('Settings and watermark options loaded');
     }).catch(err => {
       console.error('Error loading watermark options:', err);
     });
+    loadLogoOptions();
   }).catch(err => {
     console.error('Error loading settings:', err);
   });
@@ -770,155 +785,172 @@ document.addEventListener('DOMContentLoaded', () => {
   const viewMetadataBtn = document.getElementById('viewMetadataBtn');
 
   // メタデータ表示ボタンのクリックイベント
-  viewMetadataBtn.addEventListener('click', async () => {
-    if (lastProcessedImagePath) {
-      try {
-        // メタデータを取得して表示
-        await displayMetadata(lastProcessedImagePath);
-      } catch (error) {
-        console.error('Error displaying metadata:', error);
-        showModal('Error', 'メタデータの表示に失敗しました: ' + error.message);
-      }
-    }
-  });
+  // viewMetadataBtn.addEventListener('click', async () => {
+  //   if (lastProcessedImagePath) {
+  //     try {
+  //       // メタデータを取得して表示
+  //       await displayMetadata(lastProcessedImagePath);
+  //     } catch (error) {
+  //       console.error('Error displaying metadata:', error);
+  //       showModal('Error', 'メタデータの表示に失敗しました: ' + error.message);
+  //     }
+  //   }
+  // });
 
   // メタデータを表示する関数
-  async function displayMetadata(imagePath) {
-    try {
-      // メタデータを読み込み中であることを表示
-      showModal('メタデータを読み込み中...', 'しばらくお待ちください...');
+  // async function displayMetadata(imagePath) {
+  //   try {
+  //     // メタデータを読み込み中であることを表示
+  //     showModal('メタデータを読み込み中...', 'しばらくお待ちください...');
+  //
+  //     // メタデータを取得
+  //     const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
+  //     if (result.success) {
+  //       // メタデータ表示用のHTMLを生成
+  //       let metadataContent = '<div class="metadata-display">';
+  //       if (!result.metadata || Object.keys(result.metadata).length === 0) {
+  //         metadataContent += '<p>画像にメタデータが含まれていません</p>';
+  //       } else {
+  //         metadataContent += '<h4>画像メタデータ</h4>';
+  //         metadataContent += '<table class="metadata-table">';
+  //
+  //         // メタデータのカテゴリごとに表示
+  //         for (const [category, items] of Object.entries(result.metadata)) {
+  //           metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
+  //
+  //           // エラーの場合は特別処理
+  //           if (category === 'Error') {
+  //             metadataContent += `<tr><td>メッセージ</td><td>${items}</td></tr>`;
+  //             continue;
+  //           }
+  //
+  //           // カテゴリ内の項目を表示（オブジェクトであることを確認）
+  //           if (typeof items === 'object' && items !== null) {
+  //             for (const [key, value] of Object.entries(items)) {
+  //               metadataContent += `<tr><td>${key}</td><td>${value}</td></tr>`;
+  //             }
+  //           } else {
+  //             // オブジェクトでない場合は単純な値として表示
+  //             metadataContent += `<tr><td>${category}</td><td>${items}</td></tr>`;
+  //           }
+  //         }
+  //         metadataContent += '</table>';
+  //       }
+  //       metadataContent += '</div>';
+  //
+  //       // モーダルを更新して表示
+  //       modalTitle.textContent = 'メタデータ情報';
+  //       modalMessage.innerHTML = metadataContent;
+  //       modalOverlay.classList.add('show');
+  //     } else {
+  //       throw new Error(result.message || 'メタデータの取得に失敗しました');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error displaying metadata:', error);
+  //     showModal('Error', `メタデータの表示に失敗しました: ${error.message}`);
+  //   }
+  // }
 
-      // メタデータを取得
-      const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
-      if (result.success) {
-        // メタデータ表示用のHTMLを生成
-        let metadataContent = '<div class="metadata-display">';
-        if (!result.metadata || Object.keys(result.metadata).length === 0) {
-          metadataContent += '<p>画像にメタデータが含まれていません</p>';
-        } else {
-          metadataContent += '<h4>画像メタデータ</h4>';
-          metadataContent += '<table class="metadata-table">';
+  const colorCodeInput = document.getElementById('colorCodeInput');
 
-          // メタデータのカテゴリごとに表示
-          for (const [category, items] of Object.entries(result.metadata)) {
-            metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
-
-            // エラーの場合は特別処理
-            if (category === 'Error') {
-              metadataContent += `<tr><td>メッセージ</td><td>${items}</td></tr>`;
-              continue;
-            }
-
-            // カテゴリ内の項目を表示（オブジェクトであることを確認）
-            if (typeof items === 'object' && items !== null) {
-              for (const [key, value] of Object.entries(items)) {
-                metadataContent += `<tr><td>${key}</td><td>${value}</td></tr>`;
-              }
-            } else {
-              // オブジェクトでない場合は単純な値として表示
-              metadataContent += `<tr><td>${category}</td><td>${items}</td></tr>`;
-            }
-          }
-          metadataContent += '</table>';
-        }
-        metadataContent += '</div>';
-
-        // モーダルを更新して表示
-        modalTitle.textContent = 'メタデータ情報';
-        modalMessage.innerHTML = metadataContent;
-        modalOverlay.classList.add('show');
-      } else {
-        throw new Error(result.message || 'メタデータの取得に失敗しました');
-      }
-    } catch (error) {
-      console.error('Error displaying metadata:', error);
-      showModal('Error', `メタデータの表示に失敗しました: ${error.message}`);
-    }
-  }
-
-  // Call these functions during initialization
-  loadWatermarkOptions();
-  loadLogoOptions();
-
-  // アウトライン色選択のイベントハンドラを追加
-  function updateColorPreview() {
+  // アウトライン色選択のイベントハンドラを拡張
+  function updateColorPreview(updateCodeInput = true, updateNumberInputs = true) {
     const r = parseInt(redSlider.value);
     const g = parseInt(greenSlider.value);
     const b = parseInt(blueSlider.value);
     colorPreview.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-    redValue.textContent = r;
-    greenValue.textContent = g;
-    blueValue.textContent = b;
+    if (updateNumberInputs) {
+      redValue.value = r;
+      greenValue.value = g;
+      blueValue.value = b;
+    }
+    if (updateCodeInput) {
+      colorCodeInput.value = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0');
+    }
   }
+
+  // スライダー → 数値input連動
+  redSlider.addEventListener('input', () => {
+    updateColorPreview(true, true);
+  });
+  greenSlider.addEventListener('input', () => {
+    updateColorPreview(true, true);
+  });
+  blueSlider.addEventListener('input', () => {
+    updateColorPreview(true, true);
+  });
+
+  // 数値input → スライダー連動
+  redValue.addEventListener('input', () => {
+    let v = Math.max(0, Math.min(255, parseInt(redValue.value) || 0));
+    redSlider.value = v;
+    updateColorPreview(true, false);
+  });
+  greenValue.addEventListener('input', () => {
+    let v = Math.max(0, Math.min(255, parseInt(greenValue.value) || 0));
+    greenSlider.value = v;
+    updateColorPreview(true, false);
+  });
+  blueValue.addEventListener('input', () => {
+    let v = Math.max(0, Math.min(255, parseInt(blueValue.value) || 0));
+    blueSlider.value = v;
+    updateColorPreview(true, false);
+  });
+
+  // カラーコードinput → スライダー・数値input連動
+  colorCodeInput.addEventListener('input', () => {
+    let code = colorCodeInput.value.replace(/[^0-9a-fA-F]/g, '').padStart(6, '0').slice(0, 6);
+    if (code.length === 6) {
+      const r = parseInt(code.slice(0, 2), 16);
+      const g = parseInt(code.slice(2, 4), 16);
+      const b = parseInt(code.slice(4, 6), 16);
+      redSlider.value = r;
+      greenSlider.value = g;
+      blueSlider.value = b;
+      updateColorPreview(false, true);
+    }
+  });
 
   // 初期カラープレビューの更新
   updateColorPreview();
-
-  // RGB各スライダーの変更イベント
-  redSlider.addEventListener('input', updateColorPreview);
-  greenSlider.addEventListener('input', updateColorPreview);
-  blueSlider.addEventListener('input', updateColorPreview);
-
-  // 自動色選択ボタンのイベント
-  autoColorBtn.addEventListener('click', () => {
-    // 自動色選択（例：ここでは白色に設定）
-    redSlider.value = 255;
-    greenSlider.value = 255;
-    blueSlider.value = 255;
-    updateColorPreview();
-  });
-
-  // ウォーターマークトグルの変更時にアウトライン設定も連動して有効/無効化
-  watermarkToggle.addEventListener('change', () => {
-    const isEnabled = watermarkToggle.checked;
-    watermarkSelect.disabled = !isEnabled;
-    invertWatermarkToggle.disabled = !isEnabled;
-    enableOutlineToggle.disabled = !isEnabled;
-
-    // アウトライン色コントロールも連動
-    outlineColorControls.style.opacity = isEnabled ? '1' : '0.5';
-    outlineColorControls.style.pointerEvents = isEnabled ? 'auto' : 'none';
-    watermarkSize.disabled = !isEnabled;
-    watermarkOpacity.disabled = !isEnabled;
-  });
 });
 
 // Add metadata display functionality
-async function displayImageMetadata(imagePath) {
-  try {
-    // Call main process to extract metadata
-    const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
-    if (result.success) {
-      // Prepare metadata display content
-      let metadataContent = '<div class="metadata-display">';
-      if (Object.keys(result.metadata).length === 0) {
-        metadataContent += '<p>画像にメタデータが含まれていません</p>';
-      } else {
-        metadataContent += '<h4>画像メタデータ</h4>';
-        metadataContent += '<table class="metadata-table">';
-
-        // Display each metadata category
-        for (const [category, items] of Object.entries(result.metadata)) {
-          metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
-
-          // Display items in this category
-          for (const [key, value] of Object.entries(items)) {
-            metadataContent += `<tr><td>${key}</td><td>${value}</td></tr>`;
-          }
-        }
-        metadataContent += '</table>';
-      }
-      metadataContent += '</div>';
-
-      // Show metadata in modal
-      modalTitle.textContent = 'メタデータ情報';
-      modalMessage.innerHTML = metadataContent;
-      modalOverlay.classList.add('show');
-    } else {
-      throw new Error(result.message || 'メタデータの取得に失敗しました');
-    }
-  } catch (error) {
-    console.error('Error displaying metadata:', error);
-    showModal('Error', `メタデータの表示に失敗しました: ${error.message}`);
-  }
-}
+// async function displayImageMetadata(imagePath) {
+//   try {
+//     // Call main process to extract metadata
+//     const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
+//     if (result.success) {
+//       // Prepare metadata display content
+//       let metadataContent = '<div class="metadata-display">';
+//       if (Object.keys(result.metadata).length === 0) {
+//         metadataContent += '<p>画像にメタデータが含まれていません</p>';
+//       } else {
+//         metadataContent += '<h4>画像メタデータ</h4>';
+//         metadataContent += '<table class="metadata-table">';
+//
+//         // Display each metadata category
+//         for (const [category, items] of Object.entries(result.metadata)) {
+//           metadataContent += `<tr><th colspan="2" class="category-header">${category}</th></tr>`;
+//
+//           // Display items in this category
+//           for (const [key, value] of Object.entries(items)) {
+//             metadataContent += `<tr><td>${key}</td><td>${value}</td></tr>`;
+//           }
+//         }
+//         metadataContent += '</table>';
+//       }
+//       metadataContent += '</div>';
+//
+//       // Show metadata in modal
+//       modalTitle.textContent = 'メタデータ情報';
+//       modalMessage.innerHTML = metadataContent;
+//       modalOverlay.classList.add('show');
+//     } else {
+//       throw new Error(result.message || 'メタデータの取得に失敗しました');
+//     }
+//   } catch (error) {
+//     console.error('Error displaying metadata:', error);
+//     showModal('Error', `メタデータの表示に失敗しました: ${error.message}`);
+//   }
+// }

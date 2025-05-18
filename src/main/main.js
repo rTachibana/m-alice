@@ -5,6 +5,7 @@ const {
   dialog
 } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 // モジュールをインポート
 const config = require('./modules/config');
@@ -22,8 +23,10 @@ app.on('ready', async () => {
     // ローディングウィンドウを表示
     loadingWindow = windowManager.createLoadingWindow();
 
-    // Python環境のセットアップ
-    await pythonSetup.setupPython();
+    // Python環境のセットアップ（初回起動時のみ: python.exeの有無で判定）
+    if (!fs.existsSync(config.pythonExePath)) {
+      await pythonSetup.setupPython();
+    }
 
     // 入出力ディレクトリの確認と作成
     config.ensureDirectoriesExist();

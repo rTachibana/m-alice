@@ -13,19 +13,24 @@ const DEFAULT_SETTINGS = {
   savePath: '',
   overwriteOriginal: false,
   // 画像処理設定
-  noiseStrength: 0.2,
-  blurStrength: 0.5,
-  jpegQuality: 80,
-  // メタデータ設定
-  removeMetadata: true,
-  addFakeMetadata: false,
-  fakeMetadataType: 'generic',
+  noiseLevel: 3,
+  noiseTypes: ['gaussian', 'dct'],
+  // メタデータ設定（新仕様）
+  metadataMode: 'not_processing', // 'not_processing', 'remove', 'fake'
+  fakeMetadataType: 'random',
   addNoAIFlag: false,
   // ウォーターマーク設定
-  addWatermark: false,
-  watermarkPath: 'none',
-  watermarkOpacity: 0.5,
-  watermarkPosition: 'bottomRight'
+  watermarkEnabled: false,
+  watermarkPath: 'no_ai',
+  invertWatermark: false,
+  enableOutline: true,
+  watermarkSize: 75,
+  watermarkOpacity: 75,
+  outlineColor: { r: 255, g: 255, b: 255 },
+  // その他
+  logoPosition: 'bottom-right',
+  resize: 'original',
+  outputFormat: 'png'
 };
 
 // 現在のアプリケーション設定
@@ -40,23 +45,42 @@ let currentSettings = {
 const loadSettings = async () => {
   try {
     const result = await ipcBridge.loadSettings();
-    if (result.success && result.settings) {
-      // 既存の設定と新しい設定をマージ
-      currentSettings = {
-        ...DEFAULT_SETTINGS,
-        ...result.settings
-      };
-      return {
-        success: true,
-        settings: currentSettings,
-        message: '設定を読み込みました'
-      };
-    } else {
-      throw new Error(result.message || '設定の読み込みに失敗しました');
+    let loaded = result.success && result.settings ? result.settings : {};
+    // 古い項目から新項目へマッピング
+    if ('removeMetadata' in loaded || 'addFakeMetadata' in loaded) {
+      if (loaded.removeMetadata) {
+        loaded.metadataMode = 'remove';
+      } else if (loaded.addFakeMetadata) {
+        loaded.metadataMode = 'fake';
+      } else {
+        loaded.metadataMode = 'not_processing';
+      }
     }
+    if ('fakeMetadataType' in loaded) {
+      loaded.fakeMetadataType = loaded.fakeMetadataType;
+    } else {
+      loaded.fakeMetadataType = 'random';
+    }
+    if ('addNoAIFlag' in loaded) {
+      loaded.addNoAIFlag = loaded.addNoAIFlag;
+    } else {
+      loaded.addNoAIFlag = false;
+    }
+    // 不要な旧項目を削除
+    delete loaded.removeMetadata;
+    delete loaded.addFakeMetadata;
+    // マージ
+    currentSettings = {
+      ...DEFAULT_SETTINGS,
+      ...loaded
+    };
+    return {
+      success: true,
+      settings: currentSettings,
+      message: '設定を読み込みました'
+    };
   } catch (error) {
     console.error('Error loading settings:', error);
-    // エラー時はデフォルト設定を使用
     currentSettings = {
       ...DEFAULT_SETTINGS
     };
@@ -81,18 +105,19 @@ const saveSettings = async newSettings => {
         message: '保存する設定が指定されていません'
       };
     }
-
-    // 現在の設定と新しい設定をマージ
-    const settingsToSave = {
-      ...currentSettings,
-      ...newSettings
-    };
-
-    // 設定をバックエンドに保存
-    const result = await ipcBridge.saveSettings(settingsToSave);
+    // 保存前に不要な旧項目を除去
+    const settingsToSave = { ...currentSettings, ...newSettings };
+    delete settingsToSave.removeMetadata;
+    delete settingsToSave.addFakeMetadata;
+    // 必要な項目のみ保存
+    const allowedKeys = Object.keys(DEFAULT_SETTINGS);
+    const filtered = {};
+    for (const k of allowedKeys) {
+      if (settingsToSave[k] !== undefined) filtered[k] = settingsToSave[k];
+    }
+    const result = await ipcBridge.saveSettings(filtered);
     if (result.success) {
-      // 保存に成功したら、現在の設定を更新
-      currentSettings = settingsToSave;
+      currentSettings = filtered;
       return {
         success: true,
         message: '設定を保存しました'
@@ -143,10 +168,72 @@ const resetSettings = async () => {
     };
   }
 };
+
+/**
+ * フォーム要素群から設定を生成し保存する（UI層から呼び出し用）
+ * @param {Object} formElements - 各種フォーム要素の参照
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+const saveSettingsFromForm = async formElements => {
+  try {
+    const {
+      logoRadioChecked,
+      noiseTypesElements,
+      metaRadioChecked,
+      fakeTypeSel,
+      noAIFlagChk,
+      noiseSlider,
+      watermarkToggle,
+      watermarkSelect,
+      invertWatermarkToggle,
+      enableOutlineToggle,
+      watermarkOpacity,
+      watermarkSize,
+      redSlider,
+      greenSlider,
+      blueSlider
+    } = formElements;
+    const logoPosition = logoRadioChecked ? logoRadioChecked.value : 'bottom-right';
+    const noiseTypes = Array.from(noiseTypesElements).map(el => el.value);
+    const metadataMode = metaRadioChecked ? metaRadioChecked.value : 'not_processing';
+    const fakeMetadataType = fakeTypeSel ? fakeTypeSel.value : 'random';
+    const addNoAIFlag = noAIFlagChk ? noAIFlagChk.checked : false;
+    const settings = {
+      logoPosition,
+      noiseLevel: noiseSlider ? noiseSlider.value : 3,
+      watermarkEnabled: watermarkToggle ? watermarkToggle.checked : false,
+      watermarkPath: watermarkSelect ? watermarkSelect.value : 'no_ai',
+      invertWatermark: invertWatermarkToggle ? invertWatermarkToggle.checked : false,
+      enableOutline: enableOutlineToggle ? enableOutlineToggle.checked : true,
+      watermarkSize: watermarkSize ? watermarkSize.value : 75,
+      watermarkOpacity: watermarkOpacity ? watermarkOpacity.value : 75,
+      resize: formElements.resizeRadioChecked ? formElements.resizeRadioChecked.value : 'original',
+      noiseTypes: noiseTypes,
+      outlineColor: {
+        r: redSlider ? parseInt(redSlider.value) : 255,
+        g: greenSlider ? parseInt(greenSlider.value) : 255,
+        b: blueSlider ? parseInt(blueSlider.value) : 255
+      },
+      metadataMode: metadataMode,
+      fakeMetadataType: fakeMetadataType,
+      addNoAIFlag: addNoAIFlag,
+      outputFormat: formElements.outputFormatRadioChecked ? formElements.outputFormatRadioChecked.value : 'png'
+    };
+    return await saveSettings(settings);
+  } catch (error) {
+    console.error('Error saving settings from form:', error);
+    return {
+      success: false,
+      message: `設定の保存に失敗しました: ${error.message}`
+    };
+  }
+};
+
 module.exports = {
   DEFAULT_SETTINGS,
   loadSettings,
   saveSettings,
   getCurrentSettings,
-  resetSettings
+  resetSettings,
+  saveSettingsFromForm
 };

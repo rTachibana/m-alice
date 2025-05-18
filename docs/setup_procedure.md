@@ -7,7 +7,6 @@
 
 - **Pillow**: 画像処理ライブラリ
 - **NumPy**: 数値計算ライブラリ
-- **scikit-learn**: 近似色抽出に使用
 - **piexif**: メタデータ操作
 - **SciPy**: DCTノイズ処理に使用
 
@@ -28,14 +27,14 @@
 以下のコマンドを使用して、必要なライブラリをインストールします。
 
 ```bash
-n:\Project\m-alice\python\python.exe -m pip install Pillow NumPy scikit-learn piexif scipy
+m-alice\python\python.exe -m pip install Pillow NumPy scikit-learn piexif scipy
 ```
 
 ### 3. 確認
 インストールが正しく行われたか確認するには、以下のコマンドを実行してください：
 
 ```bash
-n:\Project\m-alice\python\python.exe -m pip show Pillow NumPy scikit-learn piexif scipy
+m-alice\python\python.exe -m pip show Pillow NumPy scikit-learn piexif scipy
 ```
 
 すべてのライブラリが表示されればセットアップ完了です。
@@ -45,7 +44,3 @@ n:\Project\m-alice\python\python.exe -m pip show Pillow NumPy scikit-learn piexi
 ## 注意事項
 - ライブラリのバージョンは、Python 3.12 に対応しているものを使用してください。
 - 必要に応じて、`requirements-dev.txt` に依存関係を追加してください。
-
----
-
-このドキュメントは、`docs/requirements.md` に保存されています。

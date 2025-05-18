@@ -12,8 +12,8 @@
     <div class="wrapper">
         <aside class="side-menu">
             <div class="side-menu-icons">
-                <button class="menu-btn"><img src="img/python.svg" alt="python"></button>
-                <button class="menu-btn"><img src="img/setting.svg" alt="setting"></button>
+                <button id="pythonSetup" class="menu-btn"><img src="img/python.svg" alt="python"></button>
+                <button id="settings" class="menu-btn"><img src="img/setting.svg" alt="setting"></button>
             </div>
         </aside>
         <main class="container">
@@ -55,8 +55,7 @@
                         </div>
                         <div class="watermark-select">
                             <select id="watermarkSelect" disabled>
-                                <option value="no_ai">No AI</option>
-                                <option value="all_rights_reserved">All Rights Reserved</option>
+                                <!-- デフォルトoptionは削除。JSでのみ生成 -->
                             </select>
                         </div>
                         <div class="mt-10 watermark-invert-toggle">
@@ -71,44 +70,47 @@
                                 Enable Outline
                             </label>
                         </div>
-                        
-                        <!-- アウトライン色選択機能を追加 -->
-                        <div class="outline-color-controls" id="outlineColorControls">
-                            <div class="color-picker-label">
-                                <label for="outlineColorPicker">Outline Color:</label>
-                                <div class="color-preview" id="colorPreview"></div>
-                            </div>
-                            <div class="color-sliders">
-                                <div class="color-slider">
-                                    <label>R</label>
-                                    <input type="range" id="redSlider" min="0" max="255" value="255" class="color-range">
-                                    <span id="redValue">255</span>
+                        <div class="watermark-controls-group">
+                            <div class="outline-color-controls" id="outlineColorControls">
+                                <div class="color-picker-label">
+                                    <label for="outlineColorPicker">Outline Color:</label>
+                                    <div class="color-preview" id="colorPreview"></div>
+                                    <div class="color-code-input-wrapper">
+                                        <span class="color-code-hash">#</span>
+                                        <input type="text" id="colorCodeInput" maxlength="6" placeholder="ffaa33">
+                                    </div>
                                 </div>
-                                <div class="color-slider">
-                                    <label>G</label>
-                                    <input type="range" id="greenSlider" min="0" max="255" value="255" class="color-range">
-                                    <span id="greenValue">255</span>
-                                </div>
-                                <div class="color-slider">
-                                    <label>B</label>
-                                    <input type="range" id="blueSlider" min="0" max="255" value="255" class="color-range">
-                                    <span id="blueValue">255</span>
+                                <div class="color-sliders">
+                                    <div class="color-slider">
+                                        <label>R</label>
+                                        <input type="range" id="redSlider" min="0" max="255" value="255" class="color-range">
+                                        <input type="number" id="redValue" min="0" max="255" value="255" class="color-number">
+                                    </div>
+                                    <div class="color-slider">
+                                        <label>G</label>
+                                        <input type="range" id="greenSlider" min="0" max="255" value="255" class="color-range">
+                                        <input type="number" id="greenValue" min="0" max="255" value="255" class="color-number">
+                                    </div>
+                                    <div class="color-slider">
+                                        <label>B</label>
+                                        <input type="range" id="blueSlider" min="0" max="255" value="255" class="color-range">
+                                        <input type="number" id="blueValue" min="0" max="255" value="255" class="color-number">
+                                    </div>
                                 </div>
                             </div>
-                            <button id="autoColorBtn" class="auto-color-btn">Auto Color</button>
-                        </div>
-                          <div class="slider-option">
-                            <label for="watermarkOpacity">Watermark Opacity:</label>
-                            <div class="slider-with-value">
-                                <input type="range" id="watermarkOpacity" name="watermarkOpacity" min="5" max="100" value="75">
-                                <span id="opacityValue">75%</span>
+                            <div class="slider-option">
+                                <label for="watermarkOpacity">Watermark Opacity:</label>
+                                <div class="slider-with-value">
+                                    <input type="range" id="watermarkOpacity" name="watermarkOpacity" min="5" max="100" value="75">
+                                    <span id="opacityValue">75%</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="slider-option">
-                            <label for="watermarkSize">Watermark Size:</label>
-                            <div class="slider-with-value">
-                                <input type="range" id="watermarkSize" name="watermarkSize" min="30" max="95" value="75">
-                                <span id="sizeValue">75%</span>
+                            <div class="slider-option">
+                                <label for="watermarkSize">Watermark Size:</label>
+                                <div class="slider-with-value">
+                                    <input type="range" id="watermarkSize" name="watermarkSize" min="30" max="95" value="75">
+                                    <span id="sizeValue">75%</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -248,42 +250,39 @@
                     <div class="settings-section">
                         <h4>Metadata</h4>
                         <div class="metadata-options">
-                            <p>Manage image metadata settings:</p>
-                            <div class="checkbox-list">
+                            <p style="color:gray;">※試用版ではメタデータ処理は無効化されています</p>
+                            <!-- メタデータ設定UIを一時的に非表示
+                            <div class="radio-list">
                                 <label>
-                                    <input type="checkbox" id="removeMetadata" name="removeMetadata" checked>
+                                    <input type="radio" id="metadataModeNone" name="metadataMode" value="not_processing" checked>
+                                    Not processing
+                                </label>
+                                <label>
+                                    <input type="radio" id="metadataModeRemove" name="metadataMode" value="remove">
                                     Remove all metadata
                                     <small>Removes all private information like camera details, location, etc.</small>
                                 </label>
                                 <label>
-                                    <input type="checkbox" id="addFakeMetadata" name="addFakeMetadata" checked>
+                                    <input type="radio" id="metadataModeFake" name="metadataMode" value="fake">
                                     Add fake metadata
                                 </label>
-                                <div class="sub-option">
-                                    <select id="fakeMetadataType" name="fakeMetadataType">
-                                        <option value="random">Random (Recommended)</option>
-                                        <option value="paint">Paint software</option>
-                                        <option value="old_camera">Old camera</option>
-                                        <option value="screenshot">Screenshot</option>
-                                    </select>
-                                </div>
-                                <label>
+                            </div>
+                            <div class="sub-option" id="fakeMetadataOptions" style="margin-left:2em;">
+                                <select id="fakeMetadataType" name="fakeMetadataType">
+                                    <option value="random">Random (Recommended)</option>
+                                    <option value="paint">Paint software</option>
+                                    <option value="old_camera">Old camera</option>
+                                    <option value="screenshot">Screenshot</option>
+                                </select>
+                                <label style="margin-left:1em;">
                                     <input type="checkbox" id="addNoAIFlag" name="addNoAIFlag" checked>
                                     Add AI training prohibition flag
                                     <small>Embeds flags that may be recognized by AI models</small>
                                 </label>
                             </div>
+                            -->
                         </div>
                         <hr>
-                    </div>
-                    <div class="settings-section">
-                        <h4>Language</h4>
-                        <div class="language-select">
-                            <label for="languageDropdown">Select Language:</label>
-                            <select id="languageDropdown" onchange="setLanguage(this.value)">
-                                <!-- Options will be dynamically populated -->
-                            </select>
-                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -294,14 +293,18 @@
         </div>
     </div>
     <script src="js/index.js"></script>
-    <script>
-        const { setLanguage } = require('./js/utils/translation');
 
-        window.setLanguage = (lang) => {
-            setLanguage(lang);
-            alert(`Language switched to: ${lang}`);
-            location.reload(); // ページをリロードして言語を反映
-        };
-    </script>
+    <!-- メタデータ表示用モーダル -->
+    <div id="metadataModal" class="modal-overlay">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3>Metadata:</h3>
+          <button id="metadataCloseBtn" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-content">
+          <div id="metadataContent"></div>
+        </div>
+      </div>
+    </div>
 </body>
 </html>

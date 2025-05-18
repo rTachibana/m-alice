@@ -346,40 +346,30 @@ function setupIPCHandlers() {
   // ウォーターマーク画像の一覧を取得するハンドラー
   ipcMain.handle('get-watermarks', async () => {
     try {
-      const watermarkDir = path.join(config.appRoot, 'src', 'watermark');
-
-      // ディレクトリが存在するか確認
-      if (!fs.existsSync(watermarkDir)) {
-        console.error('Watermark directory does not exist:', watermarkDir);
-        return {
-          success: false,
-          message: "watermark ディレクトリが見つかりません"
-        };
+      const watermarkDirs = [
+        path.join(config.appRoot, 'src', 'watermark'),
+        path.join(config.appRoot, 'user_data', 'watermark')
+      ];
+      let watermarkMap = new Map();
+      for (const dir of watermarkDirs) {
+        if (!fs.existsSync(dir)) continue;
+        const files = fs.readdirSync(dir);
+        files.forEach(file => {
+          const ext = path.extname(file).toLowerCase();
+          if (ext === '.png' || ext === '.svg') {
+            const fileNameWithoutExt = path.basename(file, ext);
+            // 論理名をvalueに
+            if (!watermarkMap.has(fileNameWithoutExt)) {
+              watermarkMap.set(fileNameWithoutExt, {
+                value: fileNameWithoutExt,
+                displayName: fileNameWithoutExt.replace(/_/g, ' '),
+                path: path.join(dir, file)
+              });
+            }
+          }
+        });
       }
-
-      // ディレクトリ内のファイル一覧を取得
-      const files = fs.readdirSync(watermarkDir);
-
-      // PNGとSVGファイルのみをフィルタリング
-      const watermarkFiles = files.filter(file => {
-        const ext = path.extname(file).toLowerCase();
-        return ext === '.png' || ext === '.svg';
-      });
-
-      // ファイル名（拡張子なし）とパスのマッピングを作成
-      const watermarks = watermarkFiles.map(file => {
-        const fileNameWithoutExt = path.basename(file, path.extname(file));
-        // ファイル名の "_" をスペースに変換（UI表示用）
-        const displayName = fileNameWithoutExt.replace(/_/g, ' ');
-        return {
-          value: fileNameWithoutExt,
-          // 内部的に使用する値
-          displayName: displayName,
-          // UI表示用の名前
-          path: path.join(watermarkDir, file) // ファイルのフルパス
-        };
-      });
-      console.log('Found watermarks:', watermarks);
+      const watermarks = Array.from(watermarkMap.values());
       return {
         success: true,
         watermarks
@@ -480,42 +470,36 @@ const resolveWatermarkPath = watermarkPath => {
 
   // 既に拡張子がある場合はそのまま使用
   const hasExtension = possibleExtensions.some(ext => watermarkPath.toLowerCase().endsWith(ext));
+  const baseName = hasExtension ? watermarkPath.replace(/\.(png|svg)$/i, '') : watermarkPath;
 
-  // 拡張子がない場合の検索用パターン
-  const basewatermarkPath = hasExtension ? watermarkPath : watermarkPath;
+  // 探索ディレクトリ
+  const searchDirs = [
+    path.join(config.appRoot, 'user_data', 'watermark'),
+    path.join(config.appRoot, 'src', 'watermark')
+  ];
 
-  // 検索パス
-  let foundPath = null;
-
-  // 拡張子がすでにある場合
+  // まず拡張子ありで探す
   if (hasExtension) {
-    const userPath = path.join(config.appRoot, 'user_data', 'watermark', basewatermarkPath);
-    const defaultPath = path.join(config.appRoot, 'src', 'watermark', basewatermarkPath);
-    if (fs.existsSync(userPath)) {
-      console.log(`Found watermark at user path: ${userPath}`);
-      return userPath;
-    } else if (fs.existsSync(defaultPath)) {
-      console.log(`Found watermark at default path: ${defaultPath}`);
-      return defaultPath;
-    }
-  }
-  // 拡張子がない場合は.pngと.svgを順に試す
-  else {
-    for (const ext of possibleExtensions) {
-      const userPath = path.join(config.appRoot, 'user_data', 'watermark', basewatermarkPath + ext);
-      const defaultPath = path.join(config.appRoot, 'src', 'watermark', basewatermarkPath + ext);
-      if (fs.existsSync(userPath)) {
-        console.log(`Found watermark at user path: ${userPath}`);
-        return userPath;
-      } else if (fs.existsSync(defaultPath)) {
-        console.log(`Found watermark at default path: ${defaultPath}`);
-        return defaultPath;
+    for (const dir of searchDirs) {
+      const fullPath = path.join(dir, baseName + path.extname(watermarkPath));
+      if (fs.existsSync(fullPath)) {
+        return fullPath;
       }
     }
   }
-
+  // 拡張子なしなら両方の拡張子で探す
+  else {
+    for (const dir of searchDirs) {
+      for (const ext of possibleExtensions) {
+        const fullPath = path.join(dir, baseName + ext);
+        if (fs.existsSync(fullPath)) {
+          return fullPath;
+        }
+      }
+    }
+  }
   // 見つからなかった場合はエラー
-  console.error(`Watermark not found: ${watermarkPath} (tried with extensions: ${possibleExtensions.join(', ')})`);
+  console.error(`Watermark not found: ${watermarkPath}`);
   throw new Error(`Watermark not found: ${watermarkPath}`);
 };
 module.exports = {

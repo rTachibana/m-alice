@@ -222,18 +222,18 @@ def process_image(input_path, output_path, options=None):
                 noise_level=final_noise_level
             )
               # 11. メタデータ処理を実行
-            if options and (options.get('removeMetadata', True) or 
-                        options.get('addFakeMetadata', True) or 
-                        options.get('addNoAIFlag', True)):
-                
-                metadata_options = {
-                    'removeMetadata': options.get('removeMetadata', True),
-                    'addFakeMetadata': options.get('addFakeMetadata', True),
-                    'fakeMetadataType': options.get('fakeMetadataType', 'random'),
-                    'addNoAIFlag': options.get('addNoAIFlag', True),
-                }
-                
-                process_metadata(output_path, output_path, metadata_options)
+            # if options and (options.get('removeMetadata', True) or 
+            #             options.get('addFakeMetadata', True) or 
+            #             options.get('addNoAIFlag', True)):
+            #     
+            #     metadata_options = {
+            #         'removeMetadata': options.get('removeMetadata', True),
+            #         'addFakeMetadata': options.get('addFakeMetadata', True),
+            #         'fakeMetadataType': options.get('fakeMetadataType', 'random'),
+            #         'addNoAIFlag': options.get('addNoAIFlag', True),
+            #     }
+            #     
+            #     process_metadata(output_path, output_path, metadata_options)
             
             # 出力形式の設定を処理
             output_format = options.get('outputFormat', 'png') if options else 'png'

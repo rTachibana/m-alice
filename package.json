@@ -1,11 +1,15 @@
 {
   "name": "m-alice",
   "version": "1.0.0",
-  "description": "## 🎯 目的 イラスト画像に対して、AIによる再学習・模倣・トレース（特にi2i / ControlNet）を抑制するための軽量・ローカル完結型の画像防衛ツールを開発する。SNSやポートフォリオ投稿時の画像保護を主眼に置く。",
+  "description": "画像保護ツール",
   "main": "src/main/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron ."
+    "start": "electron .",
+    "build": "pwsh -Command \"New-Item -Path 'build-logs' -ItemType Directory -Force; electron-builder --publish=never | Tee-Object -FilePath ('build-logs/build-log-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.txt')\"",
+    "build:win": "pwsh -Command \"New-Item -Path 'build-logs' -ItemType Directory -Force; electron-builder --win --publish=never | Tee-Object -FilePath ('build-logs/build-win-log-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.txt')\"",
+    "build:mac": "pwsh -Command \"New-Item -Path 'build-logs' -ItemType Directory -Force; electron-builder --mac --publish=never | Tee-Object -FilePath ('build-logs/build-mac-log-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.txt')\"",
+    "build:linux": "pwsh -Command \"New-Item -Path 'build-logs' -ItemType Directory -Force; electron-builder --linux --publish=never | Tee-Object -FilePath ('build-logs/build-linux-log-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.txt')\""
   },
   "keywords": [],
   "author": "",
@@ -14,12 +18,94 @@
     "@babel/cli": "^7.27.2",
     "@babel/core": "^7.27.1",
     "@babel/preset-env": "^7.27.2",
-    "electron": "^35.2.1"
+    "@types/electron": "^1.6.12",
+    "@types/node": "^22.15.17",
+    "electron": "^35.2.1",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.26.0",
+    "eslint-plugin-electron": "^7.0.0",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "electron-store": "^10.0.1",
     "jest": "^29.7.0",
     "spectron": "^19.0.0",
     "unzipper": "^0.12.3"
+  },
+  "build": {
+    "appId": "com.malice.app",
+    "productName": "M-Alice",
+    "directories": {
+      "output": "build-app"
+    },
+    "forceCodeSigning": false,
+    "files": [
+      "src/**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icons",
+        "to": "icons"
+      },
+      {
+        "from": "python",
+        "to": "python",
+        "filter": [
+          "**/*",
+          "!**/*.pyc",
+          "!**/__pycache__"
+        ]
+      },
+      {
+        "from": "src/backend",
+        "to": "backend",
+        "filter": [
+          "**/*.py",
+          "!**/*.pyc",
+          "!**/__pycache__"
+        ]
+      },
+      {
+        "from": "src/watermark",
+        "to": "watermark"
+      },
+      {
+        "from": "src/logo",
+        "to": "logo"
+      },
+      {
+        "from": "src/language",
+        "to": "language"
+      }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icons/icon.ico",
+      "sign": false
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "build/icons/icon.png"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "build/icons/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
   }
 }

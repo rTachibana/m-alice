@@ -82,7 +82,7 @@ const setupPythonLibraries = async () => {
   });
 
   // 必要なライブラリをインストール
-  const libraries = ['pillow', 'numpy', 'scipy'];
+  const libraries = ['pillow', 'numpy', 'scipy', 'piexif'];
   const pipPath = path.join(config.pythonDir, 'Scripts', 'pip.exe');
   for (const lib of libraries) {
     console.log(`Installing ${lib}...`);
@@ -110,16 +110,27 @@ const setupPythonLibraries = async () => {
 };
 
 // Pythonのセットアップメイン関数
-const setupPython = async () => {
+const setupPython = async (options = {}) => {
+  if (options.force) {
+    // pythonディレクトリを削除
+    if (fs.existsSync(config.pythonDir)) {
+      fs.rmSync(config.pythonDir, { recursive: true, force: true });
+      console.log('Pythonディレクトリを強制削除しました');
+    }
+  }
   if (fs.existsSync(config.pythonExePath)) {
     console.log('Python is already set up.');
-
     // Python環境はあるが、必要なライブラリが揃っているか確認し、不足していれば追加インストール
     await setupPythonLibraries();
     return;
   }
   const pythonZipUrl = getPythonUrl();
   const zipPath = path.join(config.pythonDir, 'python-embed.zip');
+  // 1. pythonディレクトリがなければ作成
+  if (!fs.existsSync(config.pythonDir)) {
+    fs.mkdirSync(config.pythonDir, { recursive: true });
+  }
+  // 2. zipダウンロード
   console.log(`Downloading Python embeddable package from ${pythonZipUrl}...`);
   const file = fs.createWriteStream(zipPath);
   await new Promise((resolve, reject) => {
@@ -132,15 +143,18 @@ const setupPython = async () => {
       fs.unlink(zipPath, () => reject(err));
     });
   });
+  // 3. zip展開
   console.log('Extracting Python embeddable package...');
   await new Promise((resolve, reject) => {
     fs.createReadStream(zipPath).pipe(unzipper.Extract({
       path: config.pythonDir
     })).on('close', resolve).on('error', reject);
   });
-  fs.unlinkSync(zipPath);
+  // 4. zip削除
+  if (fs.existsSync(zipPath)) {
+    fs.unlinkSync(zipPath);
+  }
   console.log('Python setup complete.');
-
   // Pythonライブラリをインストール
   await setupPythonLibraries();
 };
