@@ -1,8 +1,5 @@
 "use strict";
 
-const path = require('path');
-const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
-
 /**
  * 画像のメタデータを取得
  * @param {string} imagePath - メタデータを取得する画像のパス
@@ -17,7 +14,7 @@ const getImageMetadata = async imagePath => {
         message: '画像パスが指定されていません'
       };
     }
-    const result = await ipcBridge.getImageMetadata(imagePath);
+    const result = await window.ipcBridge.getImageMetadata(imagePath);
     return result;
   } catch (error) {
     console.error('Error getting image metadata:', error);

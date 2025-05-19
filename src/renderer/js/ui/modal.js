@@ -1,18 +1,6 @@
 "use strict";
 
-/**
- * モーダルUIモジュール - 通知とメタデータ表示を管理
- */
-const path = require('path');
-const {
-  ipcRenderer
-} = require('electron');
-const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
-const fileHandler = require(path.join(__dirname, '../utils/fileHandler'));
-const metadata = require(path.join(__dirname, '../services/metadata'));
-const {
-  showMetadataToggle
-} = require('./metadataToggle');
+// モーダルUIモジュール - 通知とメタデータ表示を管理
 
 // 処理済み画像パスの保持
 let lastProcessedImagePath = null;
@@ -49,7 +37,7 @@ const showModal = (title, message, showOpenButton = false, filePath = null, imag
   }
   // メタデータトグル（imagePathがあれば）
   if (imagePath) {
-    const [metaLabel, metaBox] = showMetadataToggle(imagePath);
+    const [metaLabel, metaBox] = window.api.showMetadataToggle(imagePath);
     footer.appendChild(metaLabel);
     footer.appendChild(metaBox);
   }
@@ -93,7 +81,7 @@ const displayMetadata = async imagePath => {
     const metadataContent = document.getElementById('metadataContent');
 
     // メタデータを取得
-    const result = await ipcBridge.getImageMetadata(imagePath);
+    const result = await window.api.getImageMetadata(imagePath);
     if (result.success && result.text) {
       // 整形済みテキストを<pre>で表示
       metadataContent.innerHTML = '';
@@ -133,7 +121,7 @@ const displayMetadata = async imagePath => {
 const displayImageMetadata = async imagePath => {
   try {
     // メインプロセスにメタデータの抽出を依頼
-    const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
+    const result = await window.ipcBridge.invoke('get-image-metadata', imagePath);
     if (result.success) {
       // メタデータモーダルの要素
       const modalDetails = document.getElementById('modalDetails');
@@ -142,7 +130,7 @@ const displayImageMetadata = async imagePath => {
       // メタデータが存在する場合
       if (Object.keys(result.metadata).length > 0) {
         // メタデータからAI生成の可能性を判定
-        const aiDetectionResult = metadata.detectAIGeneration(result.metadata);
+        const aiDetectionResult = window.api.detectAIGeneration(result.metadata);
 
         // AI検出結果を表示
         const aiDetectionElement = document.createElement('div');
@@ -302,16 +290,19 @@ if (modalOverlay) {
     }
   });
 }
-module.exports = {
-  showModal,
-  displayMetadata,
-  setProcessedImagePath,
-  lastProcessedImagePath,
-  closeModal,
-  toggleDetails,
-  displayImageMetadata,
-  setupDetailsButton,
-  showConfirmModal,
-  showProgressModal,
-  updateProgressModal
+// UIグローバル関数をwindowに登録
+window.showModal = showModal;
+window.closeModal = closeModal;
+window.toggleDetails = toggleDetails;
+window.displayMetadata = displayMetadata;
+window.setProcessedImagePath = setProcessedImagePath;
+window.lastProcessedImagePath = lastProcessedImagePath;
+window.displayImageMetadata = displayImageMetadata;
+window.setupDetailsButton = setupDetailsButton;
+window.showConfirmModal = showConfirmModal;
+window.showProgressModal = showProgressModal;
+window.updateProgressModal = updateProgressModal;
+// openPythonCheckModalをwindowに登録
+window.openPythonCheckModal = function(pythonSetupBtn) {
+  // ...pythonCheck.jsのopenPythonCheckModalの内容をここに移植するか、window経由で呼び出す
 };

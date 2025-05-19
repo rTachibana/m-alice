@@ -7,7 +7,19 @@ def apply_logo_if_needed(image, options=None):
     必要に応じてロゴを画像に配置する関数
     """
     app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-    logo_path = os.path.join(app_root, 'src', 'logo', 'logo.png')
+    # options から logoPath を取得し、存在すればそれを使う
+    logo_path = None
+    if options and 'logoPath' in options and options['logoPath']:
+        candidate = options['logoPath']
+        if os.path.isabs(candidate):
+            if os.path.exists(candidate):
+                logo_path = candidate
+        else:
+            abs_candidate = os.path.join(app_root, candidate)
+            if os.path.exists(abs_candidate):
+                logo_path = abs_candidate
+    if not logo_path:
+        logo_path = os.path.join(app_root, 'src', 'logo', 'logo.png')
     if os.path.exists(logo_path):
         logo_position = options.get('logoPosition') if options and 'logoPosition' in options else 'random'
         return apply_marice_logo(image, logo_path, position=logo_position)

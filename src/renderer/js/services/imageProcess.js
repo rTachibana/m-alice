@@ -3,9 +3,6 @@
 /**
  * 画像処理サービス - 画像処理パラメータの構築と処理実行を管理
  */
-const path = require('path');
-const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
-const settingsService = require('./settings');
 
 /**
  * JavaScriptのキャメルケース形式からPythonのスネークケース形式に変換
@@ -28,7 +25,7 @@ const convertToPythonOptions = options => {
  */
 const buildProcessOptions = (imagePath, originalFileName) => {
   // 現在の設定を取得
-  const userSettings = settingsService.getCurrentSettings();
+  const userSettings = window.settingsService.getCurrentSettings();
 
   // UIの状態から処理オプションを構築
   return {
@@ -45,6 +42,7 @@ const buildProcessOptions = (imagePath, originalFileName) => {
     // ユーザーが指定した値（0-100%）をそのまま0.0-1.0の範囲に変換
     watermarkOpacity: userSettings.watermarkOpacity / 100,
     logoPosition: userSettings.logoPosition,
+    logoFile: userSettings.logoFile, // 追加
     removeMetadata: userSettings.removeMetadata,
     addFakeMetadata: userSettings.addFakeMetadata,
     fakeMetadataType: userSettings.fakeMetadataType,
@@ -67,7 +65,7 @@ const processImage = async (imagePath, originalFileName) => {
     const pythonOptions = convertToPythonOptions(options);
 
     // IPCを通じて画像処理を実行
-    const result = await ipcBridge.processImage(pythonOptions);
+    const result = await window.ipcBridge.processImage(pythonOptions);
     return result;
   } catch (error) {
     console.error('Error processing image:', error);
@@ -86,10 +84,13 @@ const processImage = async (imagePath, originalFileName) => {
 const showOutputInFolder = (inputPath, fileName) => {
   if (inputPath && fileName) {
     const outputFilePath = path.join(path.dirname(inputPath).replace('input', 'output'), `maliced-${fileName}`);
-    ipcBridge.showItemInFolder(outputFilePath);
+    window.ipcBridge.showItemInFolder(outputFilePath);
   }
 };
-module.exports = {
-  processImage,
-  showOutputInFolder
-};
+
+if (typeof window !== 'undefined') {
+  window.imageProcessService = {
+    processImage,
+    showOutputInFolder
+  };
+}

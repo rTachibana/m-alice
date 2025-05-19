@@ -175,138 +175,147 @@
                     <button id="settingsModalCloseBtn" class="modal-close-btn">&times;</button>
                 </div>
                 <div class="modal-content">
-                    <div class="settings-section open">
-                        <h4>Logo display position</h4>
-                        <div class="section-content">
-                            <div class="logo-position-options">
-                                <label>
-                                    <input type="radio" name="logoPosition" value="random" checked> Random (Default)
-                                </label>
-                                <div class="flex">
-                                    <label>
-                                        <input type="radio" name="logoPosition" value="top-left"> left/ top
-                                    </label>
-                                    <label>
-                                        <input type="radio" name="logoPosition" value="top-right"> right / top
-                                    </label>
-                                </div>
-                                <div class="flex">
-                                    <label>
-                                        <input type="radio" name="logoPosition" value="bottom-left"> left / bottom
-                                    </label>
-                                    <label>
-                                        <input type="radio" name="logoPosition" value="bottom-right"> right / bottom
-                                    </label>
-                                </div>
-                            </div>
-                            <hr>
-                        </div>
-                    </div>
-                    <div class="settings-section open">
-                        <h4>Noise types</h4>
-                        <div class="section-content">
-                            <div class="noise-types-options">
-                                <p>Choose which noise types to apply:</p>
-                                <div class="checkbox-list">
-                                    <label>
-                                        <input type="checkbox" name="noiseTypes" value="gaussian" checked> Gaussian noise (Default)
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" name="noiseTypes" value="dct" checked> DCT noise (Default)
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" name="noiseTypes" value="speckle"> Speckle noise
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" name="noiseTypes" value="shot"> Shot noise (Salt & Pepper)
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" name="noiseTypes" value="himalayan"> Himalayan Salt & Pepper
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" name="noiseTypes" value="mustard"> Mustard Noise
-                                    </label>
-                                    <p>* Shot noise は非常に強い影響がでます</p>
-                                    <p>* Himalayan Salt & Pepper は Shot noise にピンク色の要素を追加します</p>
-                                    <p>* Mustard Noise は特徴的な黄褐色の粒子ノイズで、AI学習を効果的に妨害します</p>
-                                </div>
-                            </div>
-                            <hr>
-                        </div>
-                    </div>
-                    <div class="settings-section">
-                        <h4>Output Format</h4>
-                        <div class="section-content">
-                            <div class="output-format-options">
-                                <p>Choose the output image format:</p>
-                                <div class="radio-list">
-                                    <label>
-                                        <input type="radio" name="outputFormat" value="png" checked> PNG (Default)
-                                        <small>Best quality and compatibility</small>
-                                    </label>
-                                    <label style="opacity: 0.5;">
-                                        <input type="radio" name="outputFormat" value="webp" disabled> WebP (Lossless)
-                                        <small>Smaller file size with full protection effect</small>
-                                    </label>
-                                </div>
-                                <p style="color:gray;">※ 試用版ではWebP形式は無効化されています</p>
-                            </div>
-                            <hr>
-                        </div>
-                    </div>
-                    <div class="settings-section">
-                        <h4>Metadata</h4>
-                        <div class="section-content">
-                            <div class="metadata-options">
-                                <p style="color:gray;">※試用版ではメタデータ処理は無効化されています</p>
-                                <!-- メタデータ設定UIを一時的に非表示
-                                <div class="radio-list">
-                                    <label>
-                                        <input type="radio" id="metadataModeNone" name="metadataMode" value="not_processing" checked>
-                                        Not processing
-                                    </label>
-                                    <label>
-                                        <input type="radio" id="metadataModeRemove" name="metadataMode" value="remove">
-                                        Remove all metadata
-                                        <small>Removes all private information like camera details, location, etc.</small>
-                                    </label>
-                                    <label>
-                                        <input type="radio" id="metadataModeFake" name="metadataMode" value="fake">
-                                        Add fake metadata
-                                    </label>
-                                </div>
-                                <div class="sub-option" id="fakeMetadataOptions" style="margin-left:2em;">
-                                    <select id="fakeMetadataType" name="fakeMetadataType">
-                                        <option value="random">Random (Recommended)</option>
-                                        <option value="paint">Paint software</option>
-                                        <option value="old_camera">Old camera</option>
-                                        <option value="screenshot">Screenshot</option>
+                    <form id="settingsForm">
+                        <!-- 既存のロゴ位置選択や他の設定UI -->
+                        <div class="settings-section open">
+                            <h4>Logo display position</h4>
+                            <div class="section-content">
+                                <div class="form-group">
+                                    <label for="logoSelect">Logo File:</label>
+                                    <select id="logoSelect" name="logoSelect">
+                                        <!-- ロゴファイル一覧がここに動的に追加される -->
                                     </select>
-                                    <label style="margin-left:1em;">
-                                        <input type="checkbox" id="addNoAIFlag" name="addNoAIFlag" checked>
-                                        Add AI training prohibition flag
-                                        <small>Embeds flags that may be recognized by AI models</small>
-                                    </label>
                                 </div>
-                                -->
+                                <div class="logo-position-options">
+                                    <label>
+                                        <input type="radio" name="logoPosition" value="random" checked> Random (Default)
+                                    </label>
+                                    <div class="flex">
+                                        <label>
+                                            <input type="radio" name="logoPosition" value="top-left"> left/ top
+                                        </label>
+                                        <label>
+                                            <input type="radio" name="logoPosition" value="top-right"> right / top
+                                        </label>
+                                    </div>
+                                    <div class="flex">
+                                        <label>
+                                            <input type="radio" name="logoPosition" value="bottom-left"> left / bottom
+                                        </label>
+                                        <label>
+                                            <input type="radio" name="logoPosition" value="bottom-right"> right / bottom
+                                        </label>
+                                    </div>
+                                </div>
+                                <hr>
                             </div>
                         </div>
-                    </div>
-                    <div class="settings-section">
-                        <h4>保存先パス設定</h4>
-                        <div class="section-content">
-                            <label>出力画像保存先:
-                                <input type="text" id="outputDirInput" style="width:80%" placeholder="例: user_data/output">
-                            </label><br>
-                            <label>入力画像保存先:
-                                <input type="text" id="inputDirInput" style="width:80%" placeholder="例: user_data/input">
-                            </label><br>
-                            <label>設定ファイル保存先:
-                                <input type="text" id="settingsDirInput" style="width:80%" placeholder="例: user_data">
-                            </label>
-                            <p style="color:gray;">※パスは相対パスまたは絶対パスで指定できます。変更後は再起動が必要な場合があります。</p>
+                        <div class="settings-section open">
+                            <h4>Noise types</h4>
+                            <div class="section-content">
+                                <div class="noise-types-options">
+                                    <p>Choose which noise types to apply:</p>
+                                    <div class="checkbox-list">
+                                        <label>
+                                            <input type="checkbox" name="noiseTypes" value="gaussian" checked> Gaussian noise (Default)
+                                        </label>
+                                        <label>
+                                            <input type="checkbox" name="noiseTypes" value="dct" checked> DCT noise (Default)
+                                        </label>
+                                        <label>
+                                            <input type="checkbox" name="noiseTypes" value="speckle"> Speckle noise
+                                        </label>
+                                        <label>
+                                            <input type="checkbox" name="noiseTypes" value="shot"> Shot noise (Salt & Pepper)
+                                        </label>
+                                        <label>
+                                            <input type="checkbox" name="noiseTypes" value="himalayan"> Himalayan Salt & Pepper
+                                        </label>
+                                        <label>
+                                            <input type="checkbox" name="noiseTypes" value="mustard"> Mustard Noise
+                                        </label>
+                                        <p>* Shot noise は非常に強い影響がでます</p>
+                                        <p>* Himalayan Salt & Pepper は Shot noise にピンク色の要素を追加します</p>
+                                        <p>* Mustard Noise は特徴的な黄褐色の粒子ノイズで、AI学習を効果的に妨害します</p>
+                                    </div>
+                                </div>
+                                <hr>
+                            </div>
                         </div>
-                    </div>
+                        <div class="settings-section">
+                            <h4>Output Format</h4>
+                            <div class="section-content">
+                                <div class="output-format-options">
+                                    <p>Choose the output image format:</p>
+                                    <div class="radio-list">
+                                        <label>
+                                            <input type="radio" name="outputFormat" value="png" checked> PNG (Default)
+                                            <small>Best quality and compatibility</small>
+                                        </label>
+                                        <label style="opacity: 0.5;">
+                                            <input type="radio" name="outputFormat" value="webp" disabled> WebP (Lossless)
+                                            <small>Smaller file size with full protection effect</small>
+                                        </label>
+                                    </div>
+                                    <p style="color:gray;">※ 試用版ではWebP形式は無効化されています</p>
+                                </div>
+                                <hr>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <h4>Metadata</h4>
+                            <div class="section-content">
+                                <div class="metadata-options">
+                                    <p style="color:gray;">※試用版ではメタデータ処理は無効化されています</p>
+                                    <!-- メタデータ設定UIを一時的に非表示
+                                    <div class="radio-list">
+                                        <label>
+                                            <input type="radio" id="metadataModeNone" name="metadataMode" value="not_processing" checked>
+                                            Not processing
+                                        </label>
+                                        <label>
+                                            <input type="radio" id="metadataModeRemove" name="metadataMode" value="remove">
+                                            Remove all metadata
+                                            <small>Removes all private information like camera details, location, etc.</small>
+                                        </label>
+                                        <label>
+                                            <input type="radio" id="metadataModeFake" name="metadataMode" value="fake">
+                                            Add fake metadata
+                                        </label>
+                                    </div>
+                                    <div class="sub-option" id="fakeMetadataOptions" style="margin-left:2em;">
+                                        <select id="fakeMetadataType" name="fakeMetadataType">
+                                            <option value="random">Random (Recommended)</option>
+                                            <option value="paint">Paint software</option>
+                                            <option value="old_camera">Old camera</option>
+                                            <option value="screenshot">Screenshot</option>
+                                        </select>
+                                        <label style="margin-left:1em;">
+                                            <input type="checkbox" id="addNoAIFlag" name="addNoAIFlag" checked>
+                                            Add AI training prohibition flag
+                                            <small>Embeds flags that may be recognized by AI models</small>
+                                        </label>
+                                    </div>
+                                    -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <h4>保存先パス設定</h4>
+                            <div class="section-content">
+                                <label>出力画像保存先:
+                                    <input type="text" id="outputDirInput" style="width:80%" placeholder="例: user_data/output">
+                                </label><br>
+                                <label>入力画像保存先:
+                                    <input type="text" id="inputDirInput" style="width:80%" placeholder="例: user_data/input">
+                                </label><br>
+                                <label>設定ファイル保存先:
+                                    <input type="text" id="settingsDirInput" style="width:80%" placeholder="例: user_data">
+                                </label>
+                                <p style="color:gray;">※パスは相対パスまたは絶対パスで指定できます。変更後は再起動が必要な場合があります。</p>
+                            </div>
+                        </div>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button id="settingsSaveBtn" class="modal-btn modal-ok-btn">Save</button>
@@ -315,6 +324,7 @@
             </div>
         </div>
     </div>
+    <script src="js/ui/modal.js"></script>
     <script src="js/index.js"></script>
 
     <!-- メタデータ表示用モーダル -->

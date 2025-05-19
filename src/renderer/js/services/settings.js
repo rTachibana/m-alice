@@ -1,8 +1,5 @@
 "use strict";
 
-const path = require('path');
-const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
-
 /**
  * 設定サービス - 設定の読み書きを抽象化
  */
@@ -10,6 +7,10 @@ const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
 // アプリケーション設定のデフォルト値
 const DEFAULT_SETTINGS = {
   // 一般設定
+  userDataDir: 'user_data',
+  inputDir: 'user_data/input',
+  outputDir: 'user_data/output',
+  settingsDir: 'user_data',
   savePath: '',
   overwriteOriginal: false,
   // 画像処理設定
@@ -35,7 +36,8 @@ const DEFAULT_SETTINGS = {
   // その他
   logoPosition: 'bottom-right',
   resize: 'original',
-  outputFormat: 'png'
+  outputFormat: 'png',
+  logoFile: 'logo.png' // デフォルトロゴファイル
 };
 
 // 現在のアプリケーション設定
@@ -49,7 +51,7 @@ let currentSettings = {
  */
 const loadSettings = async () => {
   try {
-    const result = await ipcBridge.loadSettings();
+    const result = await window.ipcBridge.loadSettings();
     let loaded = result.success && result.settings ? result.settings : {};
     // 古い項目から新項目へマッピング
     if ('removeMetadata' in loaded || 'addFakeMetadata' in loaded) {
@@ -123,7 +125,7 @@ const saveSettings = async newSettings => {
     for (const k of allowedKeys) {
       if (settingsToSave[k] !== undefined) filtered[k] = settingsToSave[k];
     }
-    const result = await ipcBridge.saveSettings(filtered);
+    const result = await window.ipcBridge.saveSettings(filtered);
     if (result.success) {
       currentSettings = filtered;
       return {
@@ -206,6 +208,7 @@ const saveSettingsFromForm = async formElements => {
     const metadataMode = metaRadioChecked ? metaRadioChecked.value : 'not_processing';
     const fakeMetadataType = fakeTypeSel ? fakeTypeSel.value : 'random';
     const addNoAIFlag = noAIFlagChk ? noAIFlagChk.checked : false;
+    const logoFile = formElements.logoFile || 'logo.png';
     const settings = {
       logoPosition,
       noiseLevel: noiseSlider ? noiseSlider.value : 3,
@@ -229,7 +232,8 @@ const saveSettingsFromForm = async formElements => {
       // 保存先パスも追加
       outputDir: formElements.outputDir || '',
       inputDir: formElements.inputDir || '',
-      settingsDir: formElements.settingsDir || ''
+      settingsDir: formElements.settingsDir || '',
+      logoFile: logoFile // ロゴファイルも追加
     };
     return await saveSettings(settings);
   } catch (error) {

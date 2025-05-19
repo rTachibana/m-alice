@@ -13,11 +13,8 @@ function showMetadataToggle(imagePath) {
       box.style.display = 'block';
       if (!loaded) {
         box.textContent = '読み込み中...';
-        const {
-          ipcRenderer
-        } = require('electron');
         try {
-          const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
+          const result = await window.api.getImageMetadata(imagePath);
           if (result && result.text) {
             box.innerHTML = `<pre>${result.text}</pre>`;
           } else {

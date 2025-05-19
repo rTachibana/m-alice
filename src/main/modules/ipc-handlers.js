@@ -143,6 +143,17 @@ function setupIPCHandlers() {
         console.log('Using watermark:', watermarkPath);
       }
 
+      // ロゴパス
+      let logoPath = null;
+      if (options.logoFile) {
+        try {
+          logoPath = resolveLogoPath(options.logoFile);
+          console.log('Using logo:', logoPath);
+        } catch (e) {
+          console.warn('Logo file not found, fallback to default:', e.message);
+        }
+      }
+
       // Python処理オプション
       const processingOptions = {
         applyWatermark: options.applyWatermark,
@@ -161,6 +172,7 @@ function setupIPCHandlers() {
         // ノイズタイプを追加
         // ロゴ位置の設定を追加
         logoPosition: options.logoPosition || 'random',
+        logoPath: logoPath, // 追加
         // メタデータオプション (キャメルケースをそのまま使用)
         removeMetadata: options.removeMetadata,
         addFakeMetadata: options.addFakeMetadata,
@@ -385,6 +397,42 @@ function setupIPCHandlers() {
     }
   });
 
+  // ロゴ画像の一覧を取得するハンドラー
+  ipcMain.handle('get-logos', async () => {
+    try {
+      const logoDirs = [path.join(config.appRoot, 'user_data', 'logo'), path.join(config.appRoot, 'src', 'logo')];
+      let logoMap = new Map();
+      for (const dir of logoDirs) {
+        if (!fs.existsSync(dir)) continue;
+        const files = fs.readdirSync(dir);
+        files.forEach(file => {
+          const ext = path.extname(file).toLowerCase();
+          if (ext === '.png' || ext === '.svg') {
+            const fileNameWithoutExt = path.basename(file, ext);
+            if (!logoMap.has(fileNameWithoutExt)) {
+              logoMap.set(fileNameWithoutExt, {
+                value: fileNameWithoutExt,
+                displayName: fileNameWithoutExt.replace(/_/g, ' '),
+                path: path.join(dir, file)
+              });
+            }
+          }
+        });
+      }
+      const logos = Array.from(logoMap.values());
+      return {
+        success: true,
+        logos
+      };
+    } catch (error) {
+      console.error('Error getting logos:', error);
+      return {
+        success: false,
+        message: error.message
+      };
+    }
+  });
+
   // メタデータを取得するハンドラ
   ipcMain.handle('get-image-metadata', async (event, imagePath) => {
     try {
@@ -501,6 +549,43 @@ const resolveWatermarkPath = watermarkPath => {
   console.error(`Watermark not found: ${watermarkPath}`);
   throw new Error(`Watermark not found: ${watermarkPath}`);
 };
+const resolveLogoPath = logoPath => {
+  // 絶対パスの場合はそのまま使用
+  const isAbsolutePath = path.isAbsolute(logoPath);
+  if (isAbsolutePath && fs.existsSync(logoPath)) {
+    return logoPath;
+  }
+  // 使用する可能性のある拡張子
+  const possibleExtensions = ['.png', '.svg'];
+  // 既に拡張子がある場合はそのまま使用
+  const hasExtension = possibleExtensions.some(ext => logoPath.toLowerCase().endsWith(ext));
+  const baseName = hasExtension ? logoPath.replace(/\.(png|svg)$/i, '') : logoPath;
+  // 探索ディレクトリ
+  const searchDirs = [path.join(config.appRoot, 'user_data', 'logo'), path.join(config.appRoot, 'src', 'logo')];
+  // まず拡張子ありで探す
+  if (hasExtension) {
+    for (const dir of searchDirs) {
+      const fullPath = path.join(dir, baseName + path.extname(logoPath));
+      if (fs.existsSync(fullPath)) {
+        return fullPath;
+      }
+    }
+  } else {
+    for (const dir of searchDirs) {
+      for (const ext of possibleExtensions) {
+        const fullPath = path.join(dir, baseName + ext);
+        if (fs.existsSync(fullPath)) {
+          return fullPath;
+        }
+      }
+    }
+  }
+  // 見つからなかった場合はエラー
+  console.error(`Logo not found: ${logoPath}`);
+  throw new Error(`Logo not found: ${logoPath}`);
+};
 module.exports = {
-  setupIPCHandlers
+  setupIPCHandlers,
+  resolveWatermarkPath,
+  resolveLogoPath
 };

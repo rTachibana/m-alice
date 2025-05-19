@@ -25,9 +25,10 @@ function createMainWindow() {
     y: windowState.y,
     icon: path.join(config.appRoot, 'build', 'icons', config.isWindows ? 'icon.ico' : 'icon.png'),
     webPreferences: {
-      contextIsolation: false,
-      nodeIntegration: true,
-      webSecurity: false
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      preload: path.join(config.appRoot, 'src', 'main', 'preload.js')
     }
   });
 

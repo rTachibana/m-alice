@@ -3,10 +3,14 @@
 /**
  * 画像表示UIモジュール - 画像の表示と操作を管理
  */
-const path = require('path');
-const fileHandler = require(path.join(__dirname, '../utils/fileHandler'));
-const imageProcessService = require(path.join(__dirname, '../services/imageProcess'));
-const modalUI = require(path.join(__dirname, './modal'));
+
+// 依存モジュールはwindow経由で参照
+const fileHandler = window.fileHandler;
+const imageProcessService = window.imageProcessService;
+const modalUI = window.modalUI;
+
+// pathユーティリティはwindow.api経由
+const pathApi = window.api;
 
 // DOM要素と状態の参照
 let beforeImage;
@@ -166,7 +170,7 @@ const handleSelectedImage = (imagePath, origFileName = null) => {
   try {
     selectedImagePath = imagePath;
     // オリジナルのファイル名を保存
-    originalFileName = origFileName || path.basename(imagePath);
+    originalFileName = origFileName || pathApi.basename(imagePath);
 
     // 画像を表示
     displayImage(beforeImage, imagePath);
@@ -214,9 +218,12 @@ const getSelectedImagePath = () => {
 const getOriginalFileName = () => {
   return originalFileName;
 };
-module.exports = {
-  initialize,
-  handleSelectedImage,
-  getSelectedImagePath,
-  getOriginalFileName
-};
+
+if (typeof window !== 'undefined') {
+  window.imageView = {
+    initialize,
+    handleSelectedImage,
+    getSelectedImagePath,
+    getOriginalFileName
+  };
+}

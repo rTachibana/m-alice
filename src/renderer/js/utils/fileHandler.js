@@ -1,18 +1,12 @@
 "use strict";
 
 /**
- * ファイル操作ユーティリティ - ファイル選択と処理を抽象化
- */
-const path = require('path');
-const ipcBridge = require('./ipcBridge');
-
-/**
  * 画像ファイルを選択する
  * @returns {Promise<{success: boolean, filePath: string, fileName: string, canceled: boolean, message: string}>}
  */
 const selectImageFile = async () => {
   try {
-    const result = await ipcBridge.selectImage();
+    const result = await window.ipcBridge.selectImage();
     if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
       return {
         success: false,
@@ -21,7 +15,8 @@ const selectImageFile = async () => {
       };
     }
     const filePath = result.filePaths[0];
-    const fileName = path.basename(filePath);
+    // ファイル名取得は標準APIで
+    const fileName = filePath.split(/[\\/]/).pop();
     return {
       success: true,
       filePath,
@@ -46,26 +41,21 @@ const selectImageFile = async () => {
  */
 const handleImageFile = async (file, fileName) => {
   try {
-    // ファイルがイメージかどうか確認
     if (!file.type.startsWith('image/')) {
       return {
         success: false,
         message: '画像ファイルを選択してください'
       };
     }
-
-    // ファイルをArrayBufferとして読み込む
     const arrayBuffer = await file.arrayBuffer();
-
     // メインプロセスに送信するためのデータを準備
     const fileData = {
-      buffer: Buffer.from(arrayBuffer),
+      buffer: arrayBuffer,
       type: file.type,
       name: fileName || file.name
     };
-
     // メインプロセスにファイルデータを送信して処理してもらう
-    const result = await ipcBridge.handleDroppedFileData(fileData);
+    const result = await window.ipcBridge.handleDroppedFileData(fileData);
     return result;
   } catch (error) {
     console.error('Error handling image file:', error);
@@ -82,10 +72,11 @@ const handleImageFile = async (file, fileName) => {
  */
 const showItemInFolder = filePath => {
   if (filePath) {
-    ipcBridge.showItemInFolder(filePath);
+    window.ipcBridge.showItemInFolder(filePath);
   }
 };
-module.exports = {
+
+window.fileHandler = {
   selectImageFile,
   handleImageFile,
   showItemInFolder

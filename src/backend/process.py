@@ -222,6 +222,21 @@ def process_image(input_path, output_path, options=None):
             )
 
             # 5. ロゴの追加
+            # logoPathのパス解決と存在確認
+            logoPath = options.get('logoPath') if options else None
+            if logoPath:
+                print(f"Logo path received from frontend: {logoPath}")
+                if not os.path.isabs(logoPath):
+                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                    abs_logo_path = os.path.normpath(os.path.join(base_dir, '..', '..', logoPath))
+                else:
+                    abs_logo_path = os.path.normpath(logoPath)
+                print(f"Normalized logo path: {abs_logo_path}")
+                print(f"Logo file exists: {os.path.exists(abs_logo_path)}")
+                if os.path.exists(abs_logo_path):
+                    options['logoPath'] = abs_logo_path
+                else:
+                    print(f"Logo file not found, fallback to default in logo_processor.py")
             processed_img = apply_logo_if_needed(processed_img, options)
 
             # 6. メタデータ改竄処理（現在はオミット）

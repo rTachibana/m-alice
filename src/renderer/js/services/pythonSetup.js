@@ -1,10 +1,8 @@
 "use strict";
 
-const {
-  ipcRenderer
-} = require('electron');
+// require('electron')を削除
 async function setupPython(options = {}) {
-  return await ipcRenderer.invoke('setup-python', options);
+  return await window.api.setupPython(options);
 }
 module.exports = {
   setupPython

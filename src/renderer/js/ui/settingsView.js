@@ -1,9 +1,8 @@
 "use strict";
 
-const path = require('path');
-const modalUI = require(path.join(__dirname, './modal'));
-const settingsService = require(path.join(__dirname, '../services/settings'));
-const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
+const modalUI = window.api.modal;
+const settingsService = window.api.settingsService;
+const ipcBridge = window.ipcBridge;
 
 /**
  * 設定UIモジュール - 設定画面の表示と操作を管理
@@ -15,6 +14,7 @@ let settingsModalCloseBtn;
 let settingsSaveBtn;
 let settingsCancelBtn;
 let watermarkSelect;
+let logoSelect;
 
 /**
  * モジュールを初期化する
@@ -26,6 +26,7 @@ const initialize = () => {
   settingsSaveBtn = document.getElementById('settingsSaveBtn');
   settingsCancelBtn = document.getElementById('settingsCancelBtn');
   watermarkSelect = document.getElementById('watermarkSelect');
+  logoSelect = document.getElementById('logoSelect');
 
   // イベントリスナーを設定
   settingsModalCloseBtn.addEventListener('click', closeSettingsModal);
@@ -50,6 +51,7 @@ const initialize = () => {
     radio.addEventListener('change', updateMetadataUI);
   });
   updateMetadataUI();
+  loadLogoOptions();
 };
 
 /**
@@ -66,6 +68,12 @@ const openSettingsModal = async () => {
     if (exists) {
       watermarkSelect.value = userSettings.watermarkPath;
     }
+  }
+
+  // ロゴ選択肢を最新化し、現在の値を選択
+  await loadLogoOptions();
+  if (logoSelect && userSettings.logoFile) {
+    logoSelect.value = userSettings.logoFile;
   }
 
   // 設定モーダルのフォーム要素に現在の設定値を設定
@@ -155,7 +163,8 @@ const saveSettings = async () => {
       // 保存先パスの値も取得
       outputDir,
       inputDir,
-      settingsDir
+      settingsDir,
+      logoFile: logoSelect ? logoSelect.value : ''
     };
     const result = await settingsService.saveSettingsFromForm(formElements);
     if (result.success) {
@@ -292,6 +301,36 @@ function updateMetadataUI() {
     document.getElementById('addNoAIFlag').disabled = true;
   }
 }
+
+// ロゴファイル選択肢を読み込む
+async function loadLogoOptions() {
+  if (!logoSelect) {
+    console.error('Logo select element not found');
+    return;
+  }
+  logoSelect.innerHTML = '';
+  // mainプロセスからロゴ一覧を取得
+  let logos = [];
+  try {
+    const result = await window.api.getLogos();
+    if (result.success && Array.isArray(result.logos)) {
+      logos = result.logos;
+    }
+  } catch (e) {
+    console.error('Failed to load logo list:', e);
+  }
+  if (logos.length === 0) {
+    // デフォルト値
+    logos = [{ value: 'logo', displayName: 'logo' }];
+  }
+  for (const logo of logos) {
+    const option = document.createElement('option');
+    option.value = logo.value;
+    option.textContent = logo.displayName;
+    logoSelect.appendChild(option);
+  }
+}
+
 module.exports = {
   initialize,
   updateNoiseLevelText,

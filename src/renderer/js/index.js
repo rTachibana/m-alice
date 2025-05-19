@@ -1,21 +1,34 @@
 "use strict";
 
-// Require electron components using contextBridge
-const {
-  ipcRenderer
-} = require('electron');
-const path = require('path');
-const fs = require('fs');
-const {
-  showModal,
-  closeModal,
-  toggleDetails
-} = require("./js/ui/modal");
+// showModal, closeModal, toggleDetails などは window 経由で呼び出す
 
 // Global variables
 let selectedImagePath = null;
 let originalFileName = null; // オリジナルのファイル名を保持する変数を追加
 let userSettings = null; // ユーザー設定を保持する変数
+
+// path APIの簡易代替関数
+function basename(filePath) {
+  return filePath.split(/[\\/]/).pop();
+}
+function extname(filePath) {
+  const base = basename(filePath);
+  const idx = base.lastIndexOf('.');
+  return idx > 0 ? base.slice(idx) : '';
+}
+function dirname(filePath) {
+  return filePath.replace(/[\\/][^\\/]*$/, '');
+}
+function joinPath(...args) {
+  return args.join('/').replace(/\/+/g, '/');
+}
+function parsePath(filePath) {
+  const base = basename(filePath);
+  const dir = dirname(filePath);
+  const ext = extname(filePath);
+  const name = base.replace(new RegExp(ext + '$'), '');
+  return { root: '', dir, base, ext, name };
+}
 
 // DOM Elements
 document.addEventListener('DOMContentLoaded', () => {
@@ -67,12 +80,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Pythonセットアップボタンのイベントリスナー
   if (pythonSetupBtn) {
     pythonSetupBtn.addEventListener('click', async function () {
-      // pythonCheck.jsのモジュールをインポート
-      const {
-        openPythonCheckModal
-      } = require('./js/services/pythonCheck');
-      // モーダルを開く
-      openPythonCheckModal(pythonSetupBtn);
+      // openPythonCheckModalをwindow経由で呼び出す
+      if (window.openPythonCheckModal) {
+        window.openPythonCheckModal(pythonSetupBtn);
+      } else {
+        window.showModal('エラー', 'Pythonセットアップモーダルが利用できません');
+      }
     });
   }
 
@@ -88,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         // メタデータを取得
         if (lastProcessedImagePath) {
-          const result = await ipcRenderer.invoke('get-image-metadata', lastProcessedImagePath);
+          const result = await window.api.getImageMetadata(lastProcessedImagePath);
           if (result.success) {
             // メタデータ表示用のHTMLを生成
             let metadataContent = '<div class="metadata-display">';
@@ -248,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const isMustardPresetActive = mustardPreset && mustardPreset.checked;
 
       // Collect processing options
+      const logoSelect = document.getElementById('logoSelect');
       const options = {
         imagePath: selectedImagePath,
         originalFileName: originalFileName,
@@ -266,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 最小値を0.3に制限
         watermarkOpacity: Math.max(0.3, watermarkOpacity.value / 100),
         logoPosition: userSettings ? userSettings.logoPosition : "random",
+        logoFile: logoSelect ? logoSelect.value : 'logo', // 追加: 選択中のロゴファイル名を送信
         // ロゴ位置の設定を追加
         // アウトラインカラーを追加
         outlineColor: watermarkToggle.checked ? [parseInt(redSlider.value), parseInt(greenSlider.value), parseInt(blueSlider.value)] : null,
@@ -284,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Send to main process for processing
-      const result = await ipcRenderer.invoke('process-image', options);
+      const result = await window.api.processImage(options);
       if (result.success) {
         // Display processed image
         afterImage.innerHTML = '';
@@ -297,13 +312,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // メタデータ表示ボタンを有効化
         // document.getElementById('viewMetadataBtn').disabled = false;
-        showModal('処理完了', '画像処理が完了しました', true);
+        window.showModal('処理完了', '画像処理が完了しました', true);
       } else {
         throw new Error(result.message || '処理に失敗しました');
       }
     } catch (error) {
       console.error('Error processing image:', error);
-      showModal('Error', '処理に失敗しました: ' + error.message);
+      window.showModal('Error', '処理に失敗しました: ' + error.message);
     } finally {
       processBtn.disabled = false;
       processBtn.textContent = "Infuse Malice";
@@ -331,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // ファイルがイメージかどうか確認
       if (!file.type.startsWith('image/')) {
-        showModal('Error', '画像ファイルを選択してください');
+        window.showModal('Error', '画像ファイルを選択してください');
         return;
       }
       try {
@@ -346,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const fileName = file.name;
 
             // ファイルデータをメインプロセスに送信
-            const result = await ipcRenderer.invoke('handle-dropped-file-data', {
+            const result = await window.api.handleDroppedFileData({
               fileName: fileName,
               fileData: Array.from(new Uint8Array(fileBuffer))
             });
@@ -357,19 +372,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           } catch (error) {
             console.error('Error processing file data:', error);
-            showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
+            window.showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
           }
         };
         reader.onerror = () => {
           console.error('Error reading file');
-          showModal('Error', 'ファイルの読み込みに失敗しました');
+          window.showModal('Error', 'ファイルの読み込みに失敗しました');
         };
 
         // ファイルをバイナリデータとして読み込む
         reader.readAsArrayBuffer(file);
       } catch (error) {
         console.error('Error handling dropped file:', error);
-        showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
+        window.showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
       }
     }
   });
@@ -378,10 +393,10 @@ document.addEventListener('DOMContentLoaded', () => {
   beforeImage.addEventListener('click', async e => {
     // クリック可能範囲を全体に拡大（画像が表示されている場合も含む）
 
-    // ここから画像選択処理（selectImageBtnのクリックハンドラと同じ処理）
+    // ここから画像選択処理（selectImageBtnのクリックハンドラと同じ処理） 
     try {
       // Ask main process to open file dialog
-      const result = await ipcRenderer.invoke('select-image');
+      const result = await window.api.selectImage();
       if (result.canceled || !result.filePaths.length) {
         return;
       }
@@ -390,11 +405,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // 選択したファイルをバッファとして読み込み、D&Dと同じ処理を行う
       try {
         // ファイルを読み込む
-        const fileData = fs.readFileSync(filePath);
-        const fileName = path.basename(filePath);
+        const fileData = await window.api.readFile(filePath);
+        const fileName = basename(filePath);
 
         // ファイルデータをメインプロセスに送信
-        const processResult = await ipcRenderer.invoke('handle-dropped-file-data', {
+        const processResult = await window.api.handleDroppedFileData({
           fileName: fileName,
           fileData: Array.from(new Uint8Array(fileData))
         });
@@ -405,11 +420,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (error) {
         console.error('Error processing selected file:', error);
-        showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
+        window.showModal('Error', `ファイルの処理に失敗しました: ${error.message}`);
       }
     } catch (error) {
       console.error('Error selecting image:', error);
-      showModal('Error', '画像の選択に失敗しました。もう一度お試しください。');
+      window.showModal('Error', '画像の選択に失敗しました。もう一度お試しください。');
     }
   });
 
@@ -419,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       selectedImagePath = imagePath;
       // オリジナルのファイル名を保存（グローバル変数に格納）
-      originalFileName = origFileName || path.basename(imagePath);
+      originalFileName = origFileName || basename(imagePath);
 
       // Display selected image (キャッシュ回避のためのタイムスタンプを追加)
       beforeImage.innerHTML = '';
@@ -431,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const outputFormat = userSettings ? userSettings.outputFormat || 'png' : 'png';
 
       // 元のファイル名から拡張子を除去
-      const filenameWithoutExt = path.parse(originalFileName).name;
+      const filenameWithoutExt = parsePath(originalFileName).name;
 
       // Update file name display with original file name and correct output format
       defaultName.textContent = originalFileName;
@@ -442,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('Image selected:', selectedImagePath, 'Original file name:', originalFileName, 'Output format:', outputFormat);
     } catch (error) {
       console.error('Error handling selected image:', error);
-      showModal('Error', '画像の読み込みに失敗しました。別の画像を試してください。');
+      window.showModal('Error', '画像の読み込みに失敗しました。別の画像を試してください。');
     }
   }
 
@@ -453,14 +468,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const outputFormat = userSettings ? userSettings.outputFormat || 'png' : 'png';
 
       // 元のファイル名から拡張子を除去
-      const filenameWithoutExt = path.parse(originalFileName).name;
+      const filenameWithoutExt = parsePath(originalFileName).name;
 
       // 正しい出力ファイルパスを生成
-      const outputFilePath = path.join(path.dirname(selectedImagePath).replace('input', 'output'), `maliced-${filenameWithoutExt}.${outputFormat}`);
+      const outputFilePath = joinPath(dirname(selectedImagePath).replace('input', 'output'), `maliced-${filenameWithoutExt}.${outputFormat}`);
       console.log('Clicking output image for file:', outputFilePath);
 
       // 新しいハンドラを使用してフォルダを開く
-      ipcRenderer.invoke('open-output-folder', outputFilePath);
+      window.api.openOutputFolder(outputFilePath);
     }
   });
 
@@ -515,8 +530,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const outputFormat = document.querySelector('input[name="outputFormat"]:checked').value;
 
       // 他の設定値も保持（UIの現在の状態から）
+      const logoSelect = document.getElementById('logoSelect');
       const settings = {
         logoPosition,
+        logoFile: logoSelect ? logoSelect.value : 'logo', // 追加: 選択中のロゴファイル名を保存
         noiseLevel: noiseSlider.value,
         watermarkEnabled: watermarkToggle.checked,
         watermarkPath: watermarkSelect.value,
@@ -542,34 +559,38 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       // 設定を保存
-      const result = await ipcRenderer.invoke('save-settings', settings);
+      const result = await window.api.saveSettings(settings);
       if (result.success) {
         // 保存成功後に設定をユーザー設定変数に反映
         userSettings = settings;
 
         // 画像が選択されている場合は、出力ファイル名表示も更新
         if (selectedImagePath && originalFileName) {
-          const filenameWithoutExt = path.parse(originalFileName).name;
+          const filenameWithoutExt = parsePath(originalFileName).name;
           outputName.textContent = `maliced-${filenameWithoutExt}.${outputFormat}`;
         }
-        showModal('設定', '設定を保存しました');
+        window.showModal('設定', '設定を保存しました');
         closeSettingsModal();
       } else {
         throw new Error(result.message || '設定の保存に失敗しました');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
-      showModal('Error', `設定の保存に失敗しました: ${error.message}`);
+      window.showModal('Error', `設定の保存に失敗しました: ${error.message}`);
     }
   }
 
   // 設定を読み込む
   async function loadSettings() {
     try {
-      const result = await ipcRenderer.invoke('load-settings');
+      const result = await window.api.loadSettings();
       if (result.success) {
         userSettings = result.settings;
-
+        // ロゴファイル設定がなければデフォルトをセット
+        if (!userSettings.logoFile) {
+          const logoSelect = document.getElementById('logoSelect');
+          userSettings.logoFile = logoSelect && logoSelect.value ? logoSelect.value : 'logo';
+        }
         // UIに設定を反映
         noiseSlider.value = userSettings.noiseLevel;
         // ノイズレベルのテキスト表示を更新
@@ -721,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       watermarkSelect.innerHTML = '';
       // get-watermarks経由で一覧取得
-      const result = await ipcRenderer.invoke('get-watermarks');
+      const result = await window.api.getWatermarks();
       if (result.success && result.watermarks && result.watermarks.length > 0) {
         result.watermarks.forEach(watermark => {
           const option = document.createElement('option');
@@ -750,20 +771,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       logoSelect.innerHTML = '';
-      const logoDirs = [path.join(__dirname, '../logo'), path.join(__dirname, '../../../user_data/logo')];
-      const logoFiles = logoDirs.flatMap(dir => {
-        if (fs.existsSync(dir)) {
-          return fs.readdirSync(dir).map(file => path.join(dir, file));
+      let logos = [];
+      try {
+        const result = await window.api.getLogos();
+        if (result.success && Array.isArray(result.logos)) {
+          logos = result.logos;
         }
-        return [];
-      });
-      logoFiles.forEach(filePath => {
-        const fileName = path.basename(filePath, path.extname(filePath)).replace(/_/g, ' ');
+      } catch (e) {
+        console.error('Failed to load logo list:', e);
+      }
+      if (logos.length === 0) {
+        logos = [{ value: 'logo', displayName: 'logo' }];
+      }
+      for (const logo of logos) {
         const option = document.createElement('option');
-        option.value = filePath;
-        option.textContent = fileName;
+        option.value = logo.value;
+        option.textContent = logo.displayName;
         logoSelect.appendChild(option);
-      });
+      }
+      // 設定ファイルに保存されているロゴを初期選択
+      if (userSettings && userSettings.logoFile) {
+        const exists = Array.from(logoSelect.options).some(opt => opt.value === userSettings.logoFile);
+        if (exists) {
+          logoSelect.value = userSettings.logoFile;
+        }
+      }
     } catch (error) {
       console.error('Error loading logo options:', error);
     }
@@ -816,7 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
   //     showModal('メタデータを読み込み中...', 'しばらくお待ちください...');
   //
   //     // メタデータを取得
-  //     const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
+  //     const result = await window.api.getImageMetadata(imagePath);
   //     if (result.success) {
   //       // メタデータ表示用のHTMLを生成
   //       let metadataContent = '<div class="metadata-display">';
@@ -941,7 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // async function displayImageMetadata(imagePath) {
 //   try {
 //     // Call main process to extract metadata
-//     const result = await ipcRenderer.invoke('get-image-metadata', imagePath);
+//     const result = await window.api.getImageMetadata(imagePath);
 //     if (result.success) {
 //       // Prepare metadata display content
 //       let metadataContent = '<div class="metadata-display">';

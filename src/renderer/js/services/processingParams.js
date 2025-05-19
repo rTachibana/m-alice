@@ -3,9 +3,7 @@
 /**
  * 画像処理パラメータサービス - UI設定からPython処理パラメータを構築
  */
-const metadataService = require('./metadata');
-const path = require('path');
-const fs = require('fs');
+const metadataService = window.metadataService;
 
 /**
  * ウォーターマークパスを解決
@@ -13,11 +11,11 @@ const fs = require('fs');
  * @returns {string} ウォーターマークのパス
  */
 const resolveWatermarkPath = watermarkPath => {
-  const userPath = path.join(__dirname, '../../../user_data/watermark', watermarkPath);
-  const defaultPath = path.join(__dirname, '../../watermark', watermarkPath);
-  if (fs.existsSync(userPath)) {
+  const userPath = window.path.join(__dirname, '../../../user_data/watermark', watermarkPath);
+  const defaultPath = window.path.join(__dirname, '../../watermark', watermarkPath);
+  if (window.fs.existsSync(userPath)) {
     return userPath;
-  } else if (fs.existsSync(defaultPath)) {
+  } else if (window.fs.existsSync(defaultPath)) {
     return defaultPath;
   } else {
     throw new Error(`Watermark not found: ${watermarkPath}`);
