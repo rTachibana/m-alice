@@ -507,6 +507,20 @@ function setupIPCHandlers() {
       };
     }
   });
+
+  // read-file IPCハンドラーを追加（重複登録防止のため、すでに登録済みならスキップ）
+  if (!ipcMain._readFileHandlerRegistered) {
+    ipcMain.handle('read-file', async (event, filePath) => {
+      try {
+        const data = fs.readFileSync(filePath);
+        return data.buffer;
+      } catch (error) {
+        console.error('Error reading file:', error);
+        throw error;
+      }
+    });
+    ipcMain._readFileHandlerRegistered = true;
+  }
 }
 const resolveWatermarkPath = watermarkPath => {
   // 絶対パスの場合はそのまま使用

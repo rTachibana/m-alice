@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('api', {
   relaunchApp: () => ipcRenderer.invoke('relaunch-app'),
   // ロゴ一覧を取得
   getLogos: () => ipcRenderer.invoke('get-logos'),
+  // ファイルをバイナリで読み込む
+  readFile: filePath => ipcRenderer.invoke('read-file', filePath),
   // イベントリスナーを登録
   on: (channel, callback) => {
     const validChannels = ['python-setup-progress'];

@@ -87,6 +87,8 @@ app.on('ready', async () => {
     }); // IPC通信ハンドラーのセットアップ
     ipcHandlers.setupIPCHandlers();
 
+    // ipcMain.handle('read-file', ...) の登録は削除（ipc-handlers.js 側のみで登録）
+
     // Python設定用のIPCハンドラーを追加
     ipcMain.handle('setup-python', async (event, options = {}) => {
       try {
