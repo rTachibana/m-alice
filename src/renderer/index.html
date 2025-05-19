@@ -180,7 +180,7 @@
                         <div class="settings-section open">
                             <h4>Logo display position</h4>
                             <div class="section-content">
-                                <div class="form-group" style="display: none;">
+                                <div class="form-group">
                                     <label for="logoSelect">Logo File:</label>
                                     <select id="logoSelect" name="logoSelect">
                                         <!-- ロゴファイル一覧がここに動的に追加される -->
@@ -304,15 +304,9 @@
                             <h4>保存先パス設定</h4>
                             <div class="section-content">
                                 <label>出力画像保存先:
-                                    <input type="text" id="outputDirInput" style="width:80%" placeholder="例: user_data/output">
+                                    <input type="text" id="outputDirInput" style="width:80%" placeholder="例: user_data/output" value="user_data/output">
                                 </label><br>
-                                <label>入力画像保存先:
-                                    <input type="text" id="inputDirInput" style="width:80%" placeholder="例: user_data/input">
-                                </label><br>
-                                <label>設定ファイル保存先:
-                                    <input type="text" id="settingsDirInput" style="width:80%" placeholder="例: user_data">
-                                </label>
-                                <p style="color:gray;">※パスは相対パスまたは絶対パスで指定できます。変更後は再起動が必要な場合があります。</p>
+                                <!-- 入力画像保存先・設定ファイル保存先は削除 -->
                             </div>
                         </div>
                     </form>
@@ -324,8 +318,16 @@
             </div>
         </div>
     </div>
+    <script src="js/services/pythonSetup.js"></script>
     <script src="js/ui/modal.js"></script>
     <script src="js/index.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        if (window.settingsView && typeof window.settingsView.initialize === 'function') {
+          window.settingsView.initialize();
+        }
+      });
+    </script>
 
     <!-- メタデータ表示用モーダル -->
     <div id="metadataModal" class="modal-overlay">

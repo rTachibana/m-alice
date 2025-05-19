@@ -83,7 +83,12 @@ function setupIPCHandlers() {
 
       // 一時ファイルの保存先を設定（拡張子をオリジナルから取得）
       const userDirs = config.getUserDirs();
-      const tempInputPath = path.join(userDirs.inputDir, 'temp_input' + path.extname(fileInfo.fileName));
+      // 入力ディレクトリは user_data/input 固定
+      const inputDir = path.join(config.appRoot, 'user_data', 'input');
+      if (!fs.existsSync(inputDir)) {
+        fs.mkdirSync(inputDir, { recursive: true });
+      }
+      const tempInputPath = path.join(inputDir, 'temp_input' + path.extname(fileInfo.fileName));
 
       // Uint8Array形式のデータをBufferに変換
       const buffer = Buffer.from(fileInfo.fileData);
@@ -112,25 +117,27 @@ function setupIPCHandlers() {
     try {
       console.log('Processing image with options:', options);
 
-      // Copy the input file to input directory
+      // 入力ファイル
       const inputFilePath = options.imagePath;
-
-      // オリジナルのファイル名を使用（指定がない場合はパスからファイル名を取得）
       const originalFileName = options.originalFileName || path.basename(inputFilePath);
-      const userDirs = config.getUserDirs();
-      const tempInputPath = path.join(userDirs.inputDir, 'temp_input' + path.extname(inputFilePath));
+
+      // 入力ディレクトリは user_data/input 固定
+      const inputDir = path.join(config.appRoot, 'user_data', 'input');
+      if (!fs.existsSync(inputDir)) {
+        fs.mkdirSync(inputDir, { recursive: true });
+      }
+      const tempInputPath = path.join(inputDir, 'temp_input' + path.extname(inputFilePath));
       console.log('Input file path:', inputFilePath);
       console.log('Original file name:', originalFileName);
       console.log('Temp input path:', tempInputPath);
 
-      // Copy input file to temp location
+      // 入力ファイルを一時保存先にコピー
       fs.copyFileSync(inputFilePath, tempInputPath);
       console.log('Copied input file to temp location');
 
-      // 出力形式の設定（デフォルトはpng）
+      // 出力ディレクトリ
+      const userDirs = config.getUserDirs();
       const outputFormat = options.outputFormat || 'png';
-
-      // 出力ファイル名の生成（元のファイル名の拡張子を除去し、設定された形式の拡張子を追加）
       const filenameWithoutExt = path.parse(originalFileName).name;
       const outputFileName = `maliced-${filenameWithoutExt}.${outputFormat}`;
       const outputPath = path.join(userDirs.outputDir, outputFileName);
@@ -269,8 +276,7 @@ function setupIPCHandlers() {
   ipcMain.handle('save-settings', async (event, settings) => {
     try {
       // ユーザー設定の保存先パスを取得
-      const userDirs = config.getUserDirs();
-      const settingsPath = path.join(userDirs.settingsDir, 'user-settings.json');
+      const settingsPath = path.join(config.appRoot, 'user_data', 'user-settings.json');
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
       console.log('Settings saved to:', settingsPath);
       return {
@@ -286,44 +292,11 @@ function setupIPCHandlers() {
   });
   ipcMain.handle('load-settings', async () => {
     try {
-      const userDirs = config.getUserDirs();
-      const settingsPath = path.join(userDirs.settingsDir, 'user-settings.json');
-      if (!fs.existsSync(settingsPath)) {
-        // デフォルト設定を返す
-        const defaultSettings = {
-          logoPosition: 'bottom-right',
-          noiseLevel: 3,
-          noiseTypes: ['gaussian', 'dct'],
-          watermarkEnabled: false,
-          watermarkPath: 'no_ai',
-          invertWatermark: false,
-          enableOutline: true,
-          watermarkSize: 75,
-          watermarkOpacity: 75,
-          resize: 'original',
-          removeMetadata: true,
-          addFakeMetadata: false,
-          fakeMetadataType: 'generic',
-          addNoAIFlag: false,
-          outlineColor: {
-            r: 255,
-            g: 255,
-            b: 255
-          },
-          outputFormat: 'png'
-        };
-
-        // デフォルト設定を保存しておく
-        fs.writeFileSync(settingsPath, JSON.stringify(defaultSettings, null, 2), 'utf8');
-        console.log('Created default settings file:', settingsPath);
-        return {
-          success: true,
-          settings: defaultSettings
-        };
+      const settingsPath = path.join(config.appRoot, 'user_data', 'user-settings.json');
+      let settings = {};
+      if (fs.existsSync(settingsPath)) {
+        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
       }
-      const settingsData = fs.readFileSync(settingsPath, 'utf8');
-      const settings = JSON.parse(settingsData);
-      console.log('Settings loaded from:', settingsPath);
       return {
         success: true,
         settings
@@ -332,30 +305,7 @@ function setupIPCHandlers() {
       console.error('Error loading settings:', error);
       return {
         success: false,
-        message: error.message,
-        // エラーが発生した場合もデフォルト設定を返す
-        settings: {
-          logoPosition: 'bottom-right',
-          noiseLevel: 3,
-          noiseTypes: ['gaussian', 'dct'],
-          watermarkEnabled: false,
-          watermarkPath: 'no_ai',
-          invertWatermark: false,
-          enableOutline: true,
-          watermarkSize: 75,
-          watermarkOpacity: 75,
-          resize: 'original',
-          removeMetadata: true,
-          addFakeMetadata: false,
-          fakeMetadataType: 'generic',
-          addNoAIFlag: false,
-          outlineColor: {
-            r: 255,
-            g: 255,
-            b: 255
-          },
-          outputFormat: 'png'
-        }
+        message: error.message
       };
     }
   });
@@ -400,7 +350,12 @@ function setupIPCHandlers() {
   // ロゴ画像の一覧を取得するハンドラー
   ipcMain.handle('get-logos', async () => {
     try {
-      const logoDirs = [path.join(config.appRoot, 'user_data', 'logo'), path.join(config.appRoot, 'src', 'logo')];
+      // 機能制限版フラグ（本来はconfigや環境変数等で管理すると良い）
+      const TRIAL_VERSION = true; // 本番化時はfalseに
+      // ディレクトリリストを分岐
+      const logoDirs = TRIAL_VERSION
+        ? [path.join(config.appRoot, 'src', 'logo')]
+        : [path.join(config.appRoot, 'user_data', 'logo'), path.join(config.appRoot, 'src', 'logo')];
       let logoMap = new Map();
       for (const dir of logoDirs) {
         if (!fs.existsSync(dir)) continue;

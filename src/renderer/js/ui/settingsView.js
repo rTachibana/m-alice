@@ -1,4 +1,7 @@
-"use strict";
+/* global window */
+
+(function() {
+  'use strict';
 
 const modalUI = window.api.modal;
 const settingsService = window.api.settingsService;
@@ -29,14 +32,33 @@ const initialize = () => {
   logoSelect = document.getElementById('logoSelect');
 
   // イベントリスナーを設定
-  settingsModalCloseBtn.addEventListener('click', closeSettingsModal);
-  settingsCancelBtn.addEventListener('click', closeSettingsModal);
-  settingsSaveBtn.addEventListener('click', saveSettings);
+  if (settingsModalCloseBtn) settingsModalCloseBtn.addEventListener('click', closeSettingsModal);
+  if (settingsSaveBtn) settingsSaveBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // モーダル外クリックと競合しないように
+    saveSettings();
+  });
+  // Cancelボタンは存在しない場合があるのでnullチェック
+  if (settingsCancelBtn) settingsCancelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeSettingsModal();
+  });
+
+  // モーダル外クリックで閉じる（SaveボタンやXボタンのクリックとは競合しない）
+  if (settingsModalOverlay) {
+    settingsModalOverlay.addEventListener('mousedown', (e) => {
+      if (e.target === settingsModalOverlay) {
+        closeSettingsModal();
+      }
+    });
+  }
 
   // サイドメニューの設定ボタンにイベントリスナーを追加
   const settingsButtons = document.querySelectorAll('.menu-btn');
   if (settingsButtons.length > 1) {
-    settingsButtons[1].addEventListener('click', openSettingsModal);
+    settingsButtons[1].addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSettingsModal();
+    });
   }
 
   // 初期設定を読み込む
@@ -111,11 +133,7 @@ const openSettingsModal = async () => {
 
   // 保存先パスの入力欄に現在の設定値を反映
   const outputDirInput = document.getElementById('outputDirInput');
-  if (outputDirInput && userSettings.outputDir) outputDirInput.value = userSettings.outputDir;
-  const inputDirInput = document.getElementById('inputDirInput');
-  if (inputDirInput && userSettings.inputDir) inputDirInput.value = userSettings.inputDir;
-  const settingsDirInput = document.getElementById('settingsDirInput');
-  if (settingsDirInput && userSettings.settingsDir) settingsDirInput.value = userSettings.settingsDir;
+  if (outputDirInput) outputDirInput.value = userSettings.outputDir || 'user_data/output';
 
   // モーダルを表示
   if (settingsModalOverlay) settingsModalOverlay.classList.add('show');
@@ -133,13 +151,9 @@ const closeSettingsModal = () => {
  */
 const saveSettings = async () => {
   try {
-    // 保存先パスの値も取得
+    // 保存時もoutputDirのみ取得
     const outputDirInput = document.getElementById('outputDirInput');
-    const inputDirInput = document.getElementById('inputDirInput');
-    const settingsDirInput = document.getElementById('settingsDirInput');
-    const outputDir = outputDirInput ? outputDirInput.value : '';
-    const inputDir = inputDirInput ? inputDirInput.value : '';
-    const settingsDir = settingsDirInput ? settingsDirInput.value : '';
+    const outputDir = outputDirInput ? outputDirInput.value : 'user_data/output';
 
     // フォームから設定値を取得し、まとめて渡す
     const formElements = {
@@ -160,10 +174,8 @@ const saveSettings = async () => {
       blueSlider: document.getElementById('blueSlider'),
       resizeRadioChecked: document.querySelector('input[name="resize"]:checked'),
       outputFormatRadioChecked: document.querySelector('input[name="outputFormat"]:checked'),
-      // 保存先パスの値も取得
+      // 設定保存時にoutputDirのみを保存
       outputDir,
-      inputDir,
-      settingsDir,
       logoFile: logoSelect ? logoSelect.value : ''
     };
     const result = await settingsService.saveSettingsFromForm(formElements);
@@ -331,8 +343,6 @@ async function loadLogoOptions() {
   }
 }
 
-module.exports = {
-  initialize,
-  updateNoiseLevelText,
-  openSettingsModal
-};
+if (typeof window !== 'undefined') window.settingsView = { initialize, updateNoiseLevelText, openSettingsModal };
+
+})();

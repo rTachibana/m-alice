@@ -681,3 +681,8 @@ input:checked + .slider:before {
 .radio-list label {
     display: block;
 }
+
+#outputDirInput {
+    padding: 4px;
+    font-size: 14px;
+}

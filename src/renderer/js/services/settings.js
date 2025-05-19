@@ -7,11 +7,7 @@
 // アプリケーション設定のデフォルト値
 const DEFAULT_SETTINGS = {
   // 一般設定
-  userDataDir: 'user_data',
-  inputDir: 'user_data/input',
   outputDir: 'user_data/output',
-  settingsDir: 'user_data',
-  savePath: '',
   overwriteOriginal: false,
   // 画像処理設定
   noiseLevel: 3,
@@ -231,8 +227,6 @@ const saveSettingsFromForm = async formElements => {
       outputFormat: formElements.outputFormatRadioChecked ? formElements.outputFormatRadioChecked.value : 'png',
       // 保存先パスも追加
       outputDir: formElements.outputDir || '',
-      inputDir: formElements.inputDir || '',
-      settingsDir: formElements.settingsDir || '',
       logoFile: logoFile // ロゴファイルも追加
     };
     return await saveSettings(settings);

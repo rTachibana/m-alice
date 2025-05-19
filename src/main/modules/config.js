@@ -19,18 +19,12 @@ const isLinux = process.platform === 'linux';
 const appRoot = app.getAppPath();
 const pythonDir = path.join(appRoot, 'python');
 const pythonExePath = path.join(pythonDir, isWindows ? 'python.exe' : 'python3');
-const inputDir = path.join(appRoot, 'src', 'input');
-const outputDir = path.join(appRoot, 'src', 'output');
+// 出力ディレクトリのデフォルトは user_data/output
+const outputDir = path.join(appRoot, 'user_data', 'output');
 
 // ディレクトリの存在確認と作成
 const ensureDirectoriesExist = () => {
   const fs = require('fs');
-  if (!fs.existsSync(inputDir)) {
-    fs.mkdirSync(inputDir, {
-      recursive: true
-    });
-    console.log(`Created input directory: ${inputDir}`);
-  }
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, {
       recursive: true
@@ -44,7 +38,6 @@ const logSystemInfo = () => {
   console.log('OS:', process.platform);
   console.log('App Root:', appRoot);
   console.log('Python Dir:', pythonDir);
-  console.log('Input Dir:', inputDir);
   console.log('Output Dir:', outputDir);
 };
 
@@ -56,20 +49,17 @@ const getUserDirs = () => {
     if (fs.existsSync(userSettingsPath)) {
       const settings = JSON.parse(fs.readFileSync(userSettingsPath, 'utf8'));
       return {
-        inputDir: settings.inputDir ? path.resolve(appRoot, settings.inputDir) : inputDir,
-        outputDir: settings.outputDir ? path.resolve(appRoot, settings.outputDir) : outputDir,
-        settingsDir: settings.settingsDir ? path.resolve(appRoot, settings.settingsDir) : path.join(appRoot, 'user_data')
+        outputDir: settings.outputDir ? path.resolve(appRoot, settings.outputDir) : outputDir
       };
     }
   } catch (e) {
     console.error('ユーザー設定から保存先パス取得失敗:', e);
   }
   return {
-    inputDir,
-    outputDir,
-    settingsDir: path.join(appRoot, 'user_data')
+    outputDir
   };
 };
+
 module.exports = {
   store,
   isWindows,
@@ -78,7 +68,6 @@ module.exports = {
   appRoot,
   pythonDir,
   pythonExePath,
-  inputDir,
   outputDir,
   ensureDirectoriesExist,
   logSystemInfo,

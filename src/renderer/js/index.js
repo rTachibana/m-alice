@@ -252,6 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!selectedImagePath) {
       return;
     }
+    // userSettingsがnullなら必ず初期化
+    if (!userSettings) await loadSettings();
+    const outputDir = userSettings && userSettings.outputDir ? userSettings.outputDir : 'user_data/output';
     try {
       // Show processing indication
       processBtn.disabled = true;
@@ -290,13 +293,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // fakeMetadataType: userSettings ? userSettings.fakeMetadataType : "random",
         // addNoAIFlag: userSettings ? userSettings.addNoAIFlag : true,
         // マスタードプリセットフラグを追加
-        mustardPreset: isMustardPresetActive
+        mustardPreset: isMustardPresetActive,
+        outputDir: outputDir // 必ずデフォルト保証
       };
 
       // マスタードプリセットが選択されている場合、ノイズタイプを上書き
       if (isMustardPresetActive) {
         options.noiseTypes = ['gaussian', 'dct', 'mustard'];
       }
+
+      // 画像処理実行前に最新設定を保存
+      await window.api.saveSettings(userSettings);
 
       // Send to main process for processing
       const result = await window.api.processImage(options);
@@ -366,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
               fileData: Array.from(new Uint8Array(fileBuffer))
             });
             if (result.success) {
-              handleSelectedImage(result.filePath, fileName); // オリジナルのファイル名を渡す
+              await handleSelectedImage(result.filePath, fileName); // オリジナルのファイル名を渡す
             } else {
               throw new Error(result.message || 'ファイルの処理に失敗しました');
             }
@@ -414,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
           fileData: Array.from(new Uint8Array(fileData))
         });
         if (processResult.success) {
-          handleSelectedImage(processResult.filePath, fileName); // オリジナルのファイル名を渡す
+          await handleSelectedImage(processResult.filePath, fileName); // オリジナルのファイル名を渡す
         } else {
           throw new Error(processResult.message || 'ファイルの処理に失敗しました');
         }
@@ -429,30 +436,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Helper function to handle selected image (used by both drag-drop and button selection)
-  function handleSelectedImage(imagePath, origFileName = null) {
+  async function handleSelectedImage(imagePath, origFileName = null) {
     if (!imagePath) return;
+    if (!userSettings) await loadSettings();
+    const outputDir = userSettings && userSettings.outputDir ? userSettings.outputDir : 'user_data/output';
     try {
       selectedImagePath = imagePath;
-      // オリジナルのファイル名を保存（グローバル変数に格納）
       originalFileName = origFileName || basename(imagePath);
-
-      // Display selected image (キャッシュ回避のためのタイムスタンプを追加)
       beforeImage.innerHTML = '';
       const img = document.createElement('img');
-      img.src = `${selectedImagePath}?t=${new Date().getTime()}`; // キャッシュ回避
+      img.src = `${selectedImagePath}?t=${new Date().getTime()}`;
       beforeImage.appendChild(img);
-
-      // 出力形式の取得（userSettingsから、または未読み込みの場合はデフォルトpng）
       const outputFormat = userSettings ? userSettings.outputFormat || 'png' : 'png';
-
-      // 元のファイル名から拡張子を除去
       const filenameWithoutExt = parsePath(originalFileName).name;
-
-      // Update file name display with original file name and correct output format
       defaultName.textContent = originalFileName;
       outputName.textContent = `maliced-${filenameWithoutExt}.${outputFormat}`;
-
-      // Enable process button
       processBtn.disabled = false;
       console.log('Image selected:', selectedImagePath, 'Original file name:', originalFileName, 'Output format:', outputFormat);
     } catch (error) {
@@ -531,6 +529,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 他の設定値も保持（UIの現在の状態から）
       const logoSelect = document.getElementById('logoSelect');
+      // outputDirは空やnullならデフォルト
+      let outputDir = userSettings && userSettings.outputDir ? userSettings.outputDir : 'user_data/output';
+      if (!outputDir) outputDir = 'user_data/output';
       const settings = {
         logoPosition,
         logoFile: logoSelect ? logoSelect.value : 'logo', // 追加: 選択中のロゴファイル名を保存
@@ -555,7 +556,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // fakeMetadataType: fakeMetadataType,
         // addNoAIFlag: addNoAIFlag,
         // 出力形式設定を追加
-        outputFormat: outputFormat
+        outputFormat: outputFormat,
+        outputDir: outputDir
       };
 
       // 設定を保存
@@ -591,6 +593,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const logoSelect = document.getElementById('logoSelect');
           userSettings.logoFile = logoSelect && logoSelect.value ? logoSelect.value : 'logo';
         }
+        // 設定読込時、outputDirがなければuser_data/outputをセット
+        if (!userSettings.outputDir) userSettings.outputDir = 'user_data/output';
+        // UIに設定を反映
+        noiseSlider.value = userSettings.noiseLevel;
         // UIに設定を反映
         noiseSlider.value = userSettings.noiseLevel;
         // ノイズレベルのテキスト表示を更新
@@ -659,14 +665,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // アウトラインの色設定を反映（設定が存在する場合）
         if (userSettings.outlineColor) {
-          redSlider.value = userSettings.outlineColor.r || 255;
-          greenSlider.value = userSettings.outlineColor.g || 255;
-          blueSlider.value = userSettings.outlineColor.b || 255;
-          // 色プレビューを更新
-          colorPreview.style.backgroundColor = `rgb(${redSlider.value}, ${greenSlider.value}, ${blueSlider.value})`;
-          redValue.textContent = redSlider.value;
-          greenValue.textContent = greenSlider.value;
-          blueValue.textContent = blueSlider.value;
+          const r = userSettings.outlineColor.r || 255;
+          const g = userSettings.outlineColor.g || 255;
+          const b = userSettings.outlineColor.b || 255;
+          redSlider.value = r;
+          greenSlider.value = g;
+          blueSlider.value = b;
+          redValue.value = r;
+          greenValue.value = g;
+          blueValue.value = b;
+          colorPreview.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+          // カラーコードinputも同期
+          colorCodeInput.value = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0');
         }
 
         // ウォーターマークが無効な場合はアウトライン色コントロールも無効化
@@ -967,6 +977,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   });
+
+  if (settingsView && typeof settingsView.initialize === 'function') {
+    settingsView.initialize();
+  }
 });
 
 // Add metadata display functionality
