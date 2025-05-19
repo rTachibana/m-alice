@@ -64,9 +64,12 @@ const getUserDirs = () => {
   } catch (e) {
     console.error('ユーザー設定から保存先パス取得失敗:', e);
   }
-  return { inputDir, outputDir, settingsDir: path.join(appRoot, 'user_data') };
+  return {
+    inputDir,
+    outputDir,
+    settingsDir: path.join(appRoot, 'user_data')
+  };
 };
-
 module.exports = {
   store,
   isWindows,

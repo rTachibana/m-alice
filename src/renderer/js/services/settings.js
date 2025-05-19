@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS = {
   noiseLevel: 3,
   noiseTypes: ['gaussian', 'dct'],
   // メタデータ設定
-  metadataMode: 'not_processing', // 'not_processing', 'remove', 'fake'
+  metadataMode: 'not_processing',
+  // 'not_processing', 'remove', 'fake'
   fakeMetadataType: 'random',
   addNoAIFlag: false,
   // ウォーターマーク設定
@@ -26,7 +27,11 @@ const DEFAULT_SETTINGS = {
   enableOutline: true,
   watermarkSize: 75,
   watermarkOpacity: 75,
-  outlineColor: { r: 255, g: 255, b: 255 },
+  outlineColor: {
+    r: 255,
+    g: 255,
+    b: 255
+  },
   // その他
   logoPosition: 'bottom-right',
   resize: 'original',
@@ -106,7 +111,10 @@ const saveSettings = async newSettings => {
       };
     }
     // 保存前に不要な旧項目を除去
-    const settingsToSave = { ...currentSettings, ...newSettings };
+    const settingsToSave = {
+      ...currentSettings,
+      ...newSettings
+    };
     delete settingsToSave.removeMetadata;
     delete settingsToSave.addFakeMetadata;
     // 必要な項目のみ保存
@@ -232,7 +240,6 @@ const saveSettingsFromForm = async formElements => {
     };
   }
 };
-
 module.exports = {
   DEFAULT_SETTINGS,
   loadSettings,

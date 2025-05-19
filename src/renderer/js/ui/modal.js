@@ -4,11 +4,15 @@
  * モーダルUIモジュール - 通知とメタデータ表示を管理
  */
 const path = require('path');
-const { ipcRenderer } = require('electron');
+const {
+  ipcRenderer
+} = require('electron');
 const ipcBridge = require(path.join(__dirname, '../utils/ipcBridge'));
 const fileHandler = require(path.join(__dirname, '../utils/fileHandler'));
 const metadata = require(path.join(__dirname, '../services/metadata'));
-const { showMetadataToggle } = require('./metadataToggle');
+const {
+  showMetadataToggle
+} = require('./metadataToggle');
 
 // 処理済み画像パスの保持
 let lastProcessedImagePath = null;
@@ -139,7 +143,7 @@ const displayImageMetadata = async imagePath => {
       if (Object.keys(result.metadata).length > 0) {
         // メタデータからAI生成の可能性を判定
         const aiDetectionResult = metadata.detectAIGeneration(result.metadata);
-        
+
         // AI検出結果を表示
         const aiDetectionElement = document.createElement('div');
         aiDetectionElement.className = 'ai-detection';
@@ -150,12 +154,11 @@ const displayImageMetadata = async imagePath => {
           <p>理由: ${aiDetectionResult.reason}</p>
         `;
         modalDetails.appendChild(aiDetectionElement);
-        
+
         // メタデータを整形して表示
         const metadataTitle = document.createElement('h3');
         metadataTitle.textContent = 'メタデータ詳細';
         modalDetails.appendChild(metadataTitle);
-        
         const formatter = new JSONFormatter(result.metadata, 2, {
           hoverPreviewEnabled: true,
           hoverPreviewArrayCount: 100,
@@ -169,10 +172,9 @@ const displayImageMetadata = async imagePath => {
         // メタデータが存在しない場合
         modalDetails.textContent = 'メタデータは存在しません';
       }
-      
+
       // モーダル詳細を表示
       modalDetails.style.display = 'block';
-      
     } else {
       throw new Error(result.message || 'メタデータの取得に失敗しました');
     }
@@ -208,16 +210,14 @@ function toggleDetails() {
  */
 const setupDetailsButton = (button, detailsElement, imagePath) => {
   if (!button || !detailsElement) return;
-  
   button.addEventListener('click', async () => {
     // ボタンの状態を切り替え
     button.classList.toggle('active');
-    
+
     // 詳細エリアの表示状態を切り替え
     if (detailsElement.style.display !== 'block') {
       detailsElement.style.display = 'block';
       detailsElement.innerHTML = '<p>メタデータを読み込み中...</p>';
-      
       try {
         // メタデータを表示
         await displayImageMetadata(imagePath);
@@ -251,14 +251,18 @@ function showConfirmModal(title, message, onYes, onNo) {
   yesBtn.className = 'modal-btn modal-ok-btn';
   yesBtn.onclick = () => {
     closeModal();
-    setTimeout(() => { if (onYes) onYes(); }, 100);
+    setTimeout(() => {
+      if (onYes) onYes();
+    }, 100);
   };
   const noBtn = document.createElement('button');
   noBtn.textContent = 'いいえ';
   noBtn.className = 'modal-btn';
   noBtn.onclick = () => {
     closeModal();
-    setTimeout(() => { if (onNo) onNo(); }, 100);
+    setTimeout(() => {
+      if (onNo) onNo();
+    }, 100);
   };
   footer.appendChild(yesBtn);
   footer.appendChild(noBtn);
@@ -298,7 +302,6 @@ if (modalOverlay) {
     }
   });
 }
-
 module.exports = {
   showModal,
   displayMetadata,

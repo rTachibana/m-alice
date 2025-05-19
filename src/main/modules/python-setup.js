@@ -29,7 +29,7 @@ const getPythonUrl = () => {
 };
 
 // Pythonの必要なライブラリをインストールする関数
-const setupPythonLibraries = async (reportProgress) => {
+const setupPythonLibraries = async reportProgress => {
   console.log('Setting up Python libraries...');
 
   // 最初の進捗報告
@@ -46,7 +46,7 @@ const setupPythonLibraries = async (reportProgress) => {
       console.log('Enabled import site in python312._pth');
     }
   }
-  
+
   // 進捗報告
   if (reportProgress) reportProgress(20);
   // get-pipスクリプトをダウンロード
@@ -80,7 +80,7 @@ const setupPythonLibraries = async (reportProgress) => {
     });
     pipInstall.on('close', code => {
       if (code === 0) {
-      console.log('pip installed successfully');
+        console.log('pip installed successfully');
         resolve();
       } else {
         console.error(`pip installation failed with code ${code}`);
@@ -95,10 +95,11 @@ const setupPythonLibraries = async (reportProgress) => {
   // 必要なライブラリをインストール
   const libraries = ['pillow', 'numpy', 'scipy', 'piexif'];
   const pipPath = path.join(config.pythonDir, 'Scripts', 'pip.exe');
-  
+
   // 各ライブラリごとの進捗値計算（40%から90%までの範囲）
   const progressStep = 50 / libraries.length;
-  let currentProgress = 40;  for (const lib of libraries) {
+  let currentProgress = 40;
+  for (const lib of libraries) {
     console.log(`Installing ${lib}...`);
     await new Promise((resolve, reject) => {
       // pipのパスが存在しない場合は、pythonの-mオプションを使用
@@ -119,15 +120,14 @@ const setupPythonLibraries = async (reportProgress) => {
         }
       });
     });
-    
+
     // ライブラリインストール後の進捗更新
     currentProgress += progressStep;
     if (reportProgress) reportProgress(Math.round(currentProgress));
   }
-  
+
   // 最終進捗報告
   if (reportProgress) reportProgress(90);
-  
   console.log('Python libraries setup complete');
 };
 
@@ -136,7 +136,10 @@ const setupPython = async (options = {}, reportProgress) => {
   if (options.force) {
     // pythonディレクトリを削除
     if (fs.existsSync(config.pythonDir)) {
-      fs.rmSync(config.pythonDir, { recursive: true, force: true });
+      fs.rmSync(config.pythonDir, {
+        recursive: true,
+        force: true
+      });
       console.log('Pythonディレクトリを強制削除しました');
     }
   }
@@ -149,68 +152,63 @@ const setupPython = async (options = {}, reportProgress) => {
     // 完了進捗報告
     if (reportProgress) reportProgress(100);
     return;
-  }  const pythonZipUrl = getPythonUrl();
+  }
+  const pythonZipUrl = getPythonUrl();
   const zipPath = path.join(config.pythonDir, 'python-embed.zip');
   // 1. pythonディレクトリがなければ作成
   if (!fs.existsSync(config.pythonDir)) {
-    fs.mkdirSync(config.pythonDir, { recursive: true });
+    fs.mkdirSync(config.pythonDir, {
+      recursive: true
+    });
   }
-  
+
   // 初期進捗報告
   if (reportProgress) reportProgress(5);
-  
+
   // 2. zipダウンロード
   console.log(`Downloading Python embeddable package from ${pythonZipUrl}...`);
   const file = fs.createWriteStream(zipPath);
-  
   await new Promise((resolve, reject) => {
     let receivedBytes = 0;
     let totalBytes = 0;
-    
     const request = https.get(pythonZipUrl, response => {
       totalBytes = parseInt(response.headers['content-length'], 10);
-      
       response.on('data', chunk => {
         receivedBytes += chunk.length;
         // ダウンロード進捗を5%から20%の範囲で報告
         if (reportProgress && totalBytes) {
-          const percent = 5 + Math.round((receivedBytes / totalBytes) * 15);
+          const percent = 5 + Math.round(receivedBytes / totalBytes * 15);
           reportProgress(percent);
         }
       });
-      
       response.pipe(file);
-      
       file.on('finish', () => {
         file.close(resolve);
       });
     });
-    
     request.on('error', err => {
       fs.unlink(zipPath, () => reject(err));
     });
   });
-  
+
   // 3. zip展開
   console.log('Extracting Python embeddable package...');
   if (reportProgress) reportProgress(20);
-  
   await new Promise((resolve, reject) => {
-    fs.createReadStream(zipPath)
-      .pipe(unzipper.Extract({ path: config.pythonDir }))
-      .on('close', () => {
-        if (reportProgress) reportProgress(30);
-        resolve();
-      })
-      .on('error', reject);
-  });  // 4. zip削除
+    fs.createReadStream(zipPath).pipe(unzipper.Extract({
+      path: config.pythonDir
+    })).on('close', () => {
+      if (reportProgress) reportProgress(30);
+      resolve();
+    }).on('error', reject);
+  }); // 4. zip削除
   if (fs.existsSync(zipPath)) {
     fs.unlinkSync(zipPath);
   }
   console.log('Python setup complete.');
   // Pythonライブラリをインストール
   await setupPythonLibraries(reportProgress);
-  
+
   // 完了進捗報告
   if (reportProgress) reportProgress(100);
 };

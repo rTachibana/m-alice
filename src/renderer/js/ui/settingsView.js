@@ -292,7 +292,6 @@ function updateMetadataUI() {
     document.getElementById('addNoAIFlag').disabled = true;
   }
 }
-
 module.exports = {
   initialize,
   updateNoiseLevelText,

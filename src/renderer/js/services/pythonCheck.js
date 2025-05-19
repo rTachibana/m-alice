@@ -1,7 +1,14 @@
-const { ipcRenderer } = require('electron');
-const { showModal, showProgressModal, updateProgressModal } = require('../ui/modal');
-const pythonSetupService = require('./pythonSetup');
+"use strict";
 
+const {
+  ipcRenderer
+} = require('electron');
+const {
+  showModal,
+  showProgressModal,
+  updateProgressModal
+} = require('../ui/modal');
+const pythonSetupService = require('./pythonSetup');
 async function openPythonCheckModal(pythonSetupBtn) {
   const modalTitle = 'Pythonセットアップ';
   const modalMsg = 'Python環境の状態をチェック、または強制的に再インストールできます。※ インターネット接続が必要です';
@@ -56,7 +63,9 @@ async function openPythonCheckModal(pythonSetupBtn) {
       updateProgressModal(percent);
     });
     try {
-      await pythonSetupService.setupPython({ force: true });
+      await pythonSetupService.setupPython({
+        force: true
+      });
       updateProgressModal(100);
       const footer2 = document.querySelector('.modal-footer');
       footer2.innerHTML = '';
@@ -83,5 +92,6 @@ async function openPythonCheckModal(pythonSetupBtn) {
   };
   footer.appendChild(reinstallBtn);
 }
-
-module.exports = { openPythonCheckModal }; 
+module.exports = {
+  openPythonCheckModal
+};

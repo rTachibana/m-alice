@@ -66,9 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Pythonセットアップボタンのイベントリスナー
   if (pythonSetupBtn) {
-    pythonSetupBtn.addEventListener('click', async function() {
+    pythonSetupBtn.addEventListener('click', async function () {
       // pythonCheck.jsのモジュールをインポート
-      const { openPythonCheckModal } = require('./js/services/pythonCheck');
+      const {
+        openPythonCheckModal
+      } = require('./js/services/pythonCheck');
       // モーダルを開く
       openPythonCheckModal(pythonSetupBtn);
     });
@@ -685,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
         invertWatermark: false,
         watermarkOpacity: 60,
         resize: 'default',
-        noiseTypes: ['gaussian', 'dct'],
+        noiseTypes: ['gaussian', 'dct']
         // メタデータのデフォルト設定
         // removeMetadata: true,
         // addFakeMetadata: true,

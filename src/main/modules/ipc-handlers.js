@@ -351,10 +351,7 @@ function setupIPCHandlers() {
   // ウォーターマーク画像の一覧を取得するハンドラー
   ipcMain.handle('get-watermarks', async () => {
     try {
-      const watermarkDirs = [
-        path.join(config.appRoot, 'src', 'watermark'),
-        path.join(config.appRoot, 'user_data', 'watermark')
-      ];
+      const watermarkDirs = [path.join(config.appRoot, 'src', 'watermark'), path.join(config.appRoot, 'user_data', 'watermark')];
       let watermarkMap = new Map();
       for (const dir of watermarkDirs) {
         if (!fs.existsSync(dir)) continue;
@@ -478,10 +475,7 @@ const resolveWatermarkPath = watermarkPath => {
   const baseName = hasExtension ? watermarkPath.replace(/\.(png|svg)$/i, '') : watermarkPath;
 
   // 探索ディレクトリ
-  const searchDirs = [
-    path.join(config.appRoot, 'user_data', 'watermark'),
-    path.join(config.appRoot, 'src', 'watermark')
-  ];
+  const searchDirs = [path.join(config.appRoot, 'user_data', 'watermark'), path.join(config.appRoot, 'src', 'watermark')];
 
   // まず拡張子ありで探す
   if (hasExtension) {
